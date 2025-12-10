@@ -3,7 +3,7 @@
 import { createClient } from "@/lib/supabase/client";
 import { useEffect, useState } from "react";
 
-type File = {
+type Files = {
   id:number,
   file_name: string;
   user_name: string;
@@ -12,14 +12,14 @@ type File = {
 export default function Page() {
   const [file, setFile] = useState<File | null>(null);
   const [user, setUser] = useState<string>("Anonymous");
-  const [ListFiles, setListFiles] = useState<File | null>();
+  const [ListFiles, setListFiles] = useState<Files | null>();
 
   const fetchFiles = async () => {
     const supabase = createClient();
     const { data, error } = await supabase
-      .from("files") // ชื่อ table
-      .select("*") // เลือกทุกคอลัมน์
-      .order("id", { ascending: false }); // เรียงใหม่สุดก่อน
+      .from("files")
+      .select("*")
+      .order("id", { ascending: false })
 
     if (error) {
       console.error(error);
@@ -41,7 +41,7 @@ export default function Page() {
 
     const filePath = `uploads/${file.name}`;
 
-    const { data: uploadData, error: uploadError } = await supabase.storage
+    const { error: uploadError } = await supabase.storage
       .from("files")
       .upload(filePath, file);
 
@@ -51,7 +51,7 @@ export default function Page() {
       return;
     }
 
-    const { data: insertData, error: insertError } = await supabase
+    const { error: insertError } = await supabase
       .from("files")
       .insert({
         file_name: file.name,
