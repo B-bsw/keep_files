@@ -1,6 +1,7 @@
 "use client";
 
 import { createClient } from "@/lib/supabase/client";
+import { X } from "lucide-react";
 import { useEffect, useState } from "react";
 
 type Files = {
@@ -67,11 +68,10 @@ export default function Page() {
     }
 
     alert("อัปโหลดสำเร็จ!");
-    fetchFiles();
   };
 
   const downloadFile = async (path: string) => {
-    const { data } =  supabase.storage.from("files").getPublicUrl(path);
+    const { data } = supabase.storage.from("files").getPublicUrl(path);
     const a = document.createElement("a");
     a.href = data.publicUrl;
     a.target = "_blank";
@@ -79,9 +79,20 @@ export default function Page() {
     URL.revokeObjectURL(data.publicUrl);
   };
 
+  const handleDelete = async (id: number, path: string) => {
+    const res = await supabase.from("files").delete().eq("id", id);
+    const { data, error } = await supabase.storage.from("files").remove(path);
+
+    if (error || res.error) {
+      console.log(error);
+    }
+
+    alert("ลบสำเร็จ");
+  };
+
   useEffect(() => {
     fetchFiles();
-  }, []);
+  }, [handleDelete, handleFile]);
 
   return (
     <div className="min-h-screen w-screen bg-black text-gray-300 flex items-center justify-center p-6">
@@ -97,12 +108,22 @@ export default function Page() {
             </p>
           ) : (
             ListFiles?.map((item) => (
-              <div
-                key={item.id}
-                onClick={() => downloadFile(item.file_path)}
-                className="px-4 py-3 border-b border-gray-800 hover:border-cyan-500 transition-colors duration-300 text-sm cursor-pointer"
-              >
-                {item.file_name}
+              <div key={item.id} className="flex items-center gap-3">
+                <div
+                  onClick={() => downloadFile(item.file_path)}
+                  className="px-4 flex items-center w-full justify-between py-3 border-b border-gray-800 hover:border-cyan-500 transition-colors duration-300 text-sm cursor-pointer"
+                >
+                  {item.file_name}{" "}
+                  <div className="font-light text-sm text-gray-400/80">
+                    {item.user_name}
+                  </div>
+                </div>
+                <div
+                  className="border rounded-lg p-0.5 hover:border-black hover:text-black hover:bg-white transition-all cursor-pointer hover:scale-95 ease-in active:scale-75"
+                  onClick={() => handleDelete(item.id, item.file_path)}
+                >
+                  <X size={18} />
+                </div>
               </div>
             ))
           )}
