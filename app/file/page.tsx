@@ -84,10 +84,11 @@ export default function Page() {
 
   const handleDelete = async (id: number, path: string) => {
     const res = await supabase.from("files").delete().eq("id", id);
-    const { data, error } = await supabase.storage.from("files").remove(path);
+    const { data, error } = await supabase.storage.from("files").remove([path]);
 
     if (error || res.error) {
       console.log(error);
+      alert('ลบไม่สำเร็จ')
     }
 
     alert("ลบสำเร็จ");
