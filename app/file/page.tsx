@@ -7,7 +7,7 @@ type Files = {
   id: number;
   file_name: string;
   user_name: string;
-  file_path:string
+  file_path: string;
 }[];
 
 export default function Page() {
@@ -41,7 +41,10 @@ export default function Page() {
 
     const { error: uploadError } = await supabase.storage
       .from("files")
-      .upload(filePath, file);
+      .upload(filePath, file, {
+        contentType: file.type,
+        upsert: false,
+      });
 
     if (uploadError) {
       console.error(uploadError);
@@ -67,23 +70,13 @@ export default function Page() {
     fetchFiles();
   };
 
-  const downloadFile = async (path: string, name: string) => {
-    const { data, error } = await supabase.storage
-      .from("files")
-      .download(path);
-
-    if (error) {
-      console.error(error);
-      alert("โหลดไฟล์ไม่ได้");
-      return;
-    }
-
-    const url = URL.createObjectURL(data);
+  const downloadFile = async (path: string) => {
+    const { data } =  supabase.storage.from("files").getPublicUrl(path);
     const a = document.createElement("a");
-    a.href = url;
-    a.download = name;
+    a.href = data.publicUrl;
+    a.target = "_blank";
     a.click();
-    URL.revokeObjectURL(url);
+    URL.revokeObjectURL(data.publicUrl);
   };
 
   useEffect(() => {
@@ -106,7 +99,7 @@ export default function Page() {
             ListFiles?.map((item) => (
               <div
                 key={item.id}
-                onClick={() => downloadFile(item.file_path,item.file_name)}
+                onClick={() => downloadFile(item.file_path)}
                 className="px-4 py-3 border-b border-gray-800 hover:border-cyan-500 transition-colors duration-300 text-sm cursor-pointer"
               >
                 {item.file_name}

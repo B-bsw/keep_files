@@ -13,7 +13,7 @@ export default function Page() {
     e.preventDefault();
     if (type === process.env.NEXT_PUBLIC_KEY) {
       console.log("ok");
-      document.cookie = `files_access=ok; path=/; max-age=120;`;
+      document.cookie = `files_access=ok; path=/; max-age=90;`;
       router.push("/files");
     }
   };
