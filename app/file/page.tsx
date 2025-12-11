@@ -2,7 +2,7 @@
 
 import { createClient } from "@/lib/supabase/client";
 import { Loader, X } from "lucide-react";
-import { Suspense, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 type Files = {
   id: number;
@@ -15,11 +15,11 @@ export default function Page() {
   const [file, setFile] = useState<File | null>(null);
   const [user, setUser] = useState<string>("Anonymous");
   const [ListFiles, setListFiles] = useState<Files | null>();
-  const supabase = createClient();
+  
+  const supabase = useMemo(() => createClient(), []);
   const [isLoading, setIsloading] = useState<boolean>(true);
 
-  const fetchFiles = async () => {
-    setIsloading(false)
+  const fetchFiles = useCallback(async () => {
     const { data, error } = await supabase
       .from("files")
       .select("*")
@@ -30,14 +30,15 @@ export default function Page() {
       return;
     }
     setListFiles(data);
-    setIsloading(false)
-  };
+    setIsloading(false);
+  }, [supabase]);
 
-  const handleFile = async (e: React.FormEvent) => {
+  const handleFile = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsloading(true);
 
     if (!file) {
-      alert("เลือกไฟล์ก่อน");
+      // alert("เลือกไฟล์ก่อน");
       return;
     }
 
@@ -52,7 +53,7 @@ export default function Page() {
 
     if (uploadError) {
       console.error(uploadError);
-      alert("เกิดข้อผิดพลาดระหว่างอัปโหลดไฟล์  หรือ ไฟล์ซ้ำกัน");
+      // alert("เกิดข้อผิดพลาดระหว่างอัปโหลดไฟล์  หรือ ไฟล์ซ้ำกัน");
       return;
     }
 
@@ -66,37 +67,44 @@ export default function Page() {
 
     if (insertError) {
       console.error(insertError);
-      alert("เกิดข้อผิดพลาดระหว่างบันทึกข้อมูลไฟล์");
+      // alert("เกิดข้อผิดพลาดระหว่างบันทึกข้อมูลไฟล์");
       return;
     }
 
-    alert("อัปโหลดสำเร็จ!");
-  };
+    // alert("อัปโหลดสำเร็จ!");
+    fetchFiles();
+  }, [file, user, supabase, fetchFiles]);
 
-  const downloadFile = async (path: string) => {
+  const downloadFile = useCallback(async (path: string) => {
     const { data } = supabase.storage.from("files").getPublicUrl(path);
     const a = document.createElement("a");
     a.href = data.publicUrl;
     a.target = "_blank";
     a.click();
     URL.revokeObjectURL(data.publicUrl);
-  };
+  }, [supabase]);
 
-  const handleDelete = async (id: number, path: string) => {
-    const res = await supabase.from("files").delete().eq("id", id);
-    const { data, error } = await supabase.storage.from("files").remove([path]);
+  const handleDelete = useCallback(async (id: number, path: string) => {
+    setIsloading(true);
+    const { error } = await supabase.from("files").delete().eq("id", id);
+    const res = await supabase.storage.from("files").remove([path]);
 
-    if (error || res.error) {
+    if (error) {
       console.log(error);
-      alert('ลบไม่สำเร็จ')
+      // alert("ลบไม่สำเร็จ");
     }
 
-    alert("ลบสำเร็จ");
-  };
+    if (res.error) {
+      console.log(res.error);
+    }
+
+    // alert("ลบสำเร็จ");
+    fetchFiles();
+  }, [supabase, fetchFiles]);
 
   useEffect(() => {
     fetchFiles();
-  }, [handleDelete, handleFile]);
+  }, [fetchFiles]);
 
   return (
     <div className="min-h-screen w-screen bg-black text-gray-300 flex items-center justify-center p-6">
@@ -139,7 +147,7 @@ export default function Page() {
           )}
         </div>
 
-        <form onSubmit={handleFile} className="space-y-6">
+        <form onSubmit={e => !isLoading && handleFile(e)} className="space-y-6">
           <input
             type="text"
             placeholder="Your name (optional)"
