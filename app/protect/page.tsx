@@ -12,8 +12,7 @@ export default function Page() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (type === process.env.NEXT_PUBLIC_KEY) {
-      console.log("ok");
-      document.cookie = `files_access=ok; path=/; max-age=90;`;
+      document.cookie = `files_access=ok; path=/; max-age=30;`;
       router.push("/files");
     }
   };
