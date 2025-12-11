@@ -4,35 +4,33 @@ import { createClient } from "@/lib/supabase/client";
 import { useEffect, useState } from "react";
 
 type Files = {
-  id:number,
+  id: number;
   file_name: string;
   user_name: string;
+  file_path:string
 }[];
 
 export default function Page() {
   const [file, setFile] = useState<File | null>(null);
   const [user, setUser] = useState<string>("Anonymous");
   const [ListFiles, setListFiles] = useState<Files | null>();
+  const supabase = createClient();
 
   const fetchFiles = async () => {
-    const supabase = createClient();
     const { data, error } = await supabase
       .from("files")
       .select("*")
-      .order("id", { ascending: false })
+      .order("id", { ascending: false });
 
     if (error) {
       console.error(error);
       return;
     }
-
-    console.log("DATA:", data);
     setListFiles(data);
   };
 
   const handleFile = async (e: React.FormEvent) => {
     e.preventDefault();
-    const supabase = createClient();
 
     if (!file) {
       alert("เลือกไฟล์ก่อน");
@@ -51,15 +49,13 @@ export default function Page() {
       return;
     }
 
-    const { error: insertError } = await supabase
-      .from("files")
-      .insert({
-        file_name: file.name,
-        file_path: filePath,
-        size: file.size,
-        mime: file.type,
-        user_name: user,
-      });
+    const { error: insertError } = await supabase.from("files").insert({
+      file_name: file.name,
+      file_path: filePath,
+      size: file.size,
+      mime: file.type,
+      user_name: user,
+    });
 
     if (insertError) {
       console.error(insertError);
@@ -68,7 +64,26 @@ export default function Page() {
     }
 
     alert("อัปโหลดสำเร็จ!");
-    fetchFiles()
+    fetchFiles();
+  };
+
+  const downloadFile = async (path: string, name: string) => {
+    const { data, error } = await supabase.storage
+      .from("files")
+      .download(path);
+
+    if (error) {
+      console.error(error);
+      alert("โหลดไฟล์ไม่ได้");
+      return;
+    }
+
+    const url = URL.createObjectURL(data);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = name;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   useEffect(() => {
@@ -78,21 +93,21 @@ export default function Page() {
   return (
     <div className="min-h-screen w-screen bg-black text-gray-300 flex items-center justify-center p-6">
       <div className="w-full max-w-lg space-y-12">
-
-        {/* Title */}
         <h1 className="text-3xl font-light tracking-wider text-center">
           <span className="text-cyan-400">Upload</span> File
         </h1>
 
-        {/* File List */}
-        <div className="space-y-2">
+        <div className="space-y-2 overflow-auto max-h-[40vh]">
           {ListFiles?.length === 0 ? (
-            <p className="text-center text-gray-600 py-8 text-sm">No files uploaded yet</p>
+            <p className="text-center text-gray-600 py-8 text-sm">
+              No files uploaded yet
+            </p>
           ) : (
             ListFiles?.map((item) => (
               <div
                 key={item.id}
-                className="px-4 py-3 border-b border-gray-800 hover:border-cyan-500 transition-colors duration-300 text-sm"
+                onClick={() => downloadFile(item.file_path,item.file_name)}
+                className="px-4 py-3 border-b border-gray-800 hover:border-cyan-500 transition-colors duration-300 text-sm cursor-pointer"
               >
                 {item.file_name}
               </div>
@@ -101,12 +116,13 @@ export default function Page() {
         </div>
 
         <form onSubmit={handleFile} className="space-y-6">
-
           <input
             type="text"
             placeholder="Your name (optional)"
             onChange={(e) =>
-              setUser(e.target.value.trim() === "" ? "Anonymous" : e.target.value)
+              setUser(
+                e.target.value.trim() === "" ? "Anonymous" : e.target.value,
+              )
             }
             className="w-full px-0 py-2 bg-transparent border-b border-gray-700 focus:border-cyan-400 outline-none transition-colors text-white placeholder-gray-600"
           />
@@ -124,7 +140,6 @@ export default function Page() {
             Upload
           </button>
         </form>
-
       </div>
     </div>
   );
