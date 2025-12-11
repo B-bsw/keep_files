@@ -1,8 +1,8 @@
 "use client";
 
 import { createClient } from "@/lib/supabase/client";
-import { X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Loader, X } from "lucide-react";
+import { Suspense, useEffect, useState } from "react";
 
 type Files = {
   id: number;
@@ -16,8 +16,10 @@ export default function Page() {
   const [user, setUser] = useState<string>("Anonymous");
   const [ListFiles, setListFiles] = useState<Files | null>();
   const supabase = createClient();
+  const [isLoading, setIsloading] = useState<boolean>(true);
 
   const fetchFiles = async () => {
+    setIsloading(false)
     const { data, error } = await supabase
       .from("files")
       .select("*")
@@ -28,6 +30,7 @@ export default function Page() {
       return;
     }
     setListFiles(data);
+    setIsloading(false)
   };
 
   const handleFile = async (e: React.FormEvent) => {
@@ -102,7 +105,13 @@ export default function Page() {
         </h1>
 
         <div className="space-y-2 overflow-auto max-h-[40vh]">
-          {ListFiles?.length === 0 ? (
+          {isLoading ? (
+            <div className="flex justify-center">
+              <div className="animate-spin w-fit">
+                <Loader />
+              </div>
+            </div>
+          ) : ListFiles?.length === 0 ? (
             <p className="text-center text-gray-600 py-8 text-sm">
               No files uploaded yet
             </p>
