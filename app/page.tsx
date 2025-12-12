@@ -1,16 +1,12 @@
 'use client'
 
-import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useRouter } from 'next/navigation'
+import { useEffect } from 'react'
 
 export default function Home() {
-  const router = useRouter()
-  useEffect(() =>{
-    router.push("/file")
-  },[router])
-  return (
-    <main className="min-h-screen flex flex-col items-center">
-
-    </main>
-  );
+    const router = useRouter()
+    useEffect(() => {
+        router.push('/file')
+    }, [router])
+    return <main className="flex min-h-screen flex-col items-center"></main>
 }

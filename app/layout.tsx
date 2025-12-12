@@ -1,40 +1,40 @@
-import type { Metadata } from "next";
-import { Geist } from "next/font/google";
-import { ThemeProvider } from "next-themes";
-import "./globals.css";
+import type { Metadata } from 'next'
+import { Geist } from 'next/font/google'
+import { ThemeProvider } from 'next-themes'
+import './globals.css'
 
 const defaultUrl = process.env.VERCEL_URL
-  ? `https://${process.env.VERCEL_URL}`
-  : "http://localhost:3000";
+    ? `https://${process.env.VERCEL_URL}`
+    : 'http://localhost:3000'
 
 export const metadata: Metadata = {
-  metadataBase: new URL(defaultUrl),
-  title: "file",
-};
+    metadataBase: new URL(defaultUrl),
+    title: 'file',
+}
 
 const geistSans = Geist({
-  variable: "--font-geist-sans",
-  display: "swap",
-  subsets: ["latin"],
-});
+    variable: '--font-geist-sans',
+    display: 'swap',
+    subsets: ['latin'],
+})
 
 export default function RootLayout({
-  children,
+    children,
 }: Readonly<{
-  children: React.ReactNode;
+    children: React.ReactNode
 }>) {
-  return (
-    <html lang="en" suppressHydrationWarning>
-      <body className={`${geistSans.className} antialiased`}>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-        >
-          {children}
-        </ThemeProvider>
-      </body>
-    </html>
-  );
+    return (
+        <html lang="en" suppressHydrationWarning>
+            <body className={`${geistSans.className} antialiased`}>
+                <ThemeProvider
+                    attribute="class"
+                    defaultTheme="system"
+                    enableSystem
+                    disableTransitionOnChange
+                >
+                    {children}
+                </ThemeProvider>
+            </body>
+        </html>
+    )
 }
