@@ -1,7 +1,7 @@
 'use client'
 
 import { createClient } from '@/lib/supabase/client'
-import { Loader, X } from 'lucide-react'
+import { Loader, RefreshCcw, X } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
 type Files = {
@@ -100,6 +100,11 @@ export default function Page() {
         [supabase]
     )
 
+    const refresh = useCallback(() => {
+      setIsloading(true)
+        fetchFiles()
+    }, [fetchFiles])
+
     const handleDelete = useCallback(
         async (id: number, path: string) => {
             setIsloading(true)
@@ -133,6 +138,14 @@ export default function Page() {
                 </h1>
 
                 <div className="max-h-[40vh] space-y-2 overflow-auto">
+                    <div className=" flex justify-end gap-3">
+                      <div className='text-sm text-sky-500'>
+                        refresh button
+                      </div>
+                      <div className='w-fit p-0.5 border transition-all hover:scale-95 ease-in active:scale-75 hover:text-black rounded-lg hover:bg-white hover:border-black cursor-pointer' onClick={() => refresh()}>
+                        <RefreshCcw size={18}/>
+                      </div>
+                    </div>
                     {isLoading ? (
                         <div className="flex justify-center">
                             <div className="w-fit animate-spin">
