@@ -2,7 +2,7 @@
 
 import { createClient } from '@/lib/supabase/client'
 import { Loader, RefreshCcw, X } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState, useRef } from 'react'
 
 type Files = {
     id: number
@@ -15,6 +15,9 @@ export default function Page() {
     const [file, setFile] = useState<File | null>(null)
     const [user, setUser] = useState<string>('Anonymous')
     const [ListFiles, setListFiles] = useState<Files | null>()
+
+    const inputUsername = useRef<HTMLInputElement>(null)
+    const inputFile = useRef<HTMLInputElement>(null)
 
     const supabase = useMemo(() => createClient(), [])
     const [isLoading, setIsloading] = useState<boolean>(true)
@@ -74,6 +77,10 @@ export default function Page() {
 
             // alert("อัปโหลดสำเร็จ!");
             fetchFiles()
+            if(inputUsername.current && inputFile.current){
+              inputUsername.current.value = ''
+              inputFile.current.value = ''
+            }
         },
         [file, user, supabase, fetchFiles]
     )
@@ -101,7 +108,7 @@ export default function Page() {
     )
 
     const refresh = useCallback(() => {
-      setIsloading(true)
+        setIsloading(true)
         fetchFiles()
     }, [fetchFiles])
 
@@ -138,13 +145,16 @@ export default function Page() {
                 </h1>
 
                 <div className="max-h-[40vh] space-y-2 overflow-auto">
-                    <div className=" flex justify-end gap-3">
-                      <div className='text-sm text-sky-500'>
-                        refresh button
-                      </div>
-                      <div className='w-fit p-0.5 border transition-all hover:scale-95 ease-in active:scale-75 hover:text-black rounded-lg hover:bg-white hover:border-black cursor-pointer' onClick={() => refresh()}>
-                        <RefreshCcw size={18}/>
-                      </div>
+                    <div className="flex justify-end gap-3">
+                        <div className="text-sm text-sky-500">
+                            refresh button
+                        </div>
+                        <div
+                            className="w-fit cursor-pointer rounded-lg border p-0.5 transition-all ease-in hover:scale-95 hover:border-black hover:bg-white hover:text-black active:scale-75"
+                            onClick={() => refresh()}
+                        >
+                            <RefreshCcw size={18} />
+                        </div>
                     </div>
                     {isLoading ? (
                         <div className="flex justify-center">
@@ -194,6 +204,7 @@ export default function Page() {
                     className="space-y-6"
                 >
                     <input
+                        ref={inputUsername}
                         type="text"
                         placeholder="Your name (optional)"
                         onChange={(e) =>
@@ -207,6 +218,7 @@ export default function Page() {
                     />
 
                     <input
+                    ref={inputFile}
                         type="file"
                         onChange={(e) => setFile(e.target.files?.[0] || null)}
                         className="block w-full cursor-pointer text-sm text-gray-400 transition file:mr-4 file:rounded-full file:border-0 file:bg-cyan-500/10 file:px-6 file:py-2 file:text-sm file:font-medium file:text-cyan-400 hover:file:bg-cyan-500/20"
