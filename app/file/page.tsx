@@ -39,12 +39,13 @@ export default function Page() {
     const handleFile = useCallback(
         async (e: React.FormEvent) => {
             e.preventDefault()
-            setIsloading(true)
 
-            if (!file) {
-                // alert("เลือกไฟล์ก่อน");
+            if (!inputFile.current?.value || !file) {
+                alert('ได้โปรดเลือกไฟล์ด้วย ถือว่าขอร้อง')
                 return
             }
+
+            setIsloading(true)
 
             const filePath = `uploads/${file.name}`
 
@@ -57,7 +58,8 @@ export default function Page() {
 
             if (uploadError) {
                 console.error(uploadError)
-                // alert("เกิดข้อผิดพลาดระหว่างอัปโหลดไฟล์  หรือ ไฟล์ซ้ำกัน");
+                alert("ชื่อไฟล์ซ้ำกันหรือป่าววว");
+                setIsloading(false)
                 return
             }
 
@@ -71,15 +73,16 @@ export default function Page() {
 
             if (insertError) {
                 console.error(insertError)
-                // alert("เกิดข้อผิดพลาดระหว่างบันทึกข้อมูลไฟล์");
+                alert("เกิดข้อผิดพลาดระหว่างบันทึกข้อมูลไฟล์");
+                setIsloading(false)
                 return
             }
 
             // alert("อัปโหลดสำเร็จ!");
             fetchFiles()
-            if(inputUsername.current && inputFile.current){
-              inputUsername.current.value = ''
-              inputFile.current.value = ''
+            if (inputUsername.current && inputFile.current) {
+                inputUsername.current.value = ''
+                inputFile.current.value = ''
             }
         },
         [file, user, supabase, fetchFiles]
@@ -92,7 +95,8 @@ export default function Page() {
                 .download(path)
 
             if (error || !data) {
-                console.log(error)
+                // console.log(error)
+                // setIsloading(false)
                 return
             }
 
@@ -120,7 +124,7 @@ export default function Page() {
 
             if (error) {
                 console.log(error)
-                // alert("ลบไม่สำเร็จ");
+                alert("ลบไม่สำเร็จ");
             }
 
             if (res.error) {
@@ -140,11 +144,11 @@ export default function Page() {
     return (
         <div className="flex min-h-screen w-screen items-center justify-center bg-black p-6 text-gray-300">
             <div className="w-full max-w-lg space-y-12">
-                <h1 className="text-center text-3xl font-light tracking-wider">
+                <h1 className="text-center text-3xl font-light tracking-wider select-none">
                     <span className="text-cyan-400">Upload</span> File
                 </h1>
 
-                <div className="max-h-[40vh] space-y-2 overflow-auto">
+                <div className="max-h-[40vh] space-y-2 overflow-auto select-none">
                     <div className="flex justify-end gap-3">
                         <div className="text-sm text-sky-500">
                             refresh button
@@ -218,7 +222,7 @@ export default function Page() {
                     />
 
                     <input
-                    ref={inputFile}
+                        ref={inputFile}
                         type="file"
                         onChange={(e) => setFile(e.target.files?.[0] || null)}
                         className="block w-full cursor-pointer text-sm text-gray-400 transition file:mr-4 file:rounded-full file:border-0 file:bg-cyan-500/10 file:px-6 file:py-2 file:text-sm file:font-medium file:text-cyan-400 hover:file:bg-cyan-500/20"
