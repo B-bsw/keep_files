@@ -12,10 +12,10 @@ type Files = {
 }[]
 
 export default function Page() {
-    const [file, setFile] = useState<File | null>(null)
-    const [user, setUser] = useState<string>('Anonymous')
-    const [customFileName, setCustomFileName] = useState<string>('') // ✅ เพิ่ม
     const [ListFiles, setListFiles] = useState<Files | null>()
+    const [user, setUser] = useState<string | null>(null)
+    const [customFileName, setCustomFileName] = useState<string>('')
+    const [file, setFile] = useState<File | null>(null)
     const [isLoading, setIsloading] = useState<boolean>(true)
 
     const inputUsername = useRef<HTMLInputElement>(null)
@@ -38,6 +38,7 @@ export default function Page() {
         setIsloading(false)
     }, [supabase])
 
+    //upload file
     const handleFile = useCallback(
         async (e: React.FormEvent) => {
             e.preventDefault()
@@ -77,7 +78,7 @@ export default function Page() {
                 file_path: filePath,
                 size: file.size,
                 mime: file.type,
-                user_name: user,
+                user_name: !user ? 'Anonymous' : user,
             })
 
             if (insertError) {
@@ -90,6 +91,7 @@ export default function Page() {
             // reset
             setFile(null)
             setCustomFileName('')
+            setUser(null)
             if (inputUsername.current) inputUsername.current.value = ''
             if (inputFile.current) inputFile.current.value = ''
             if (inputEditFileName.current) inputEditFileName.current.value = ''
@@ -132,12 +134,12 @@ export default function Page() {
             const res = await supabase.storage.from('files').remove([path])
 
             if (error) {
-                console.log(error)
+                // console.log(error)
                 alert('ลบไม่สำเร็จ')
             }
 
             if (res.error) {
-                console.log(res.error)
+                // console.log(res.error)
             }
 
             fetchFiles()
