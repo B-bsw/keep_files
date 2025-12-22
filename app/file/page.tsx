@@ -14,13 +14,15 @@ type Files = {
 export default function Page() {
     const [file, setFile] = useState<File | null>(null)
     const [user, setUser] = useState<string>('Anonymous')
+    const [customFileName, setCustomFileName] = useState<string>('') // ✅ เพิ่ม
     const [ListFiles, setListFiles] = useState<Files | null>()
+    const [isLoading, setIsloading] = useState<boolean>(true)
 
     const inputUsername = useRef<HTMLInputElement>(null)
     const inputFile = useRef<HTMLInputElement>(null)
+    const inputEditFileName = useRef<HTMLInputElement>(null)
 
     const supabase = useMemo(() => createClient(), [])
-    const [isLoading, setIsloading] = useState<boolean>(true)
 
     const fetchFiles = useCallback(async () => {
         const { data, error } = await supabase
@@ -40,14 +42,21 @@ export default function Page() {
         async (e: React.FormEvent) => {
             e.preventDefault()
 
-            if (!inputFile.current?.value || !file) {
+            if (!file) {
                 alert('ได้โปรดเลือกไฟล์ด้วย ถือว่าขอร้อง')
                 return
             }
 
             setIsloading(true)
 
-            const filePath = `uploads/${file.name}`
+            //edit file name
+            const ext = file.name.split('.').pop()
+            const finalFileName =
+                customFileName.trim() !== ''
+                    ? `${customFileName}.${ext}`
+                    : file.name
+
+            const filePath = `uploads/${finalFileName}`
 
             const { error: uploadError } = await supabase.storage
                 .from('files')
@@ -58,13 +67,13 @@ export default function Page() {
 
             if (uploadError) {
                 console.error(uploadError)
-                alert("ชื่อไฟล์ซ้ำกันหรือป่าววว");
+                alert('ชื่อไฟล์ซ้ำกันหรือป่าววว')
                 setIsloading(false)
                 return
             }
 
             const { error: insertError } = await supabase.from('files').insert({
-                file_name: file.name,
+                file_name: finalFileName,
                 file_path: filePath,
                 size: file.size,
                 mime: file.type,
@@ -73,19 +82,21 @@ export default function Page() {
 
             if (insertError) {
                 console.error(insertError)
-                alert("เกิดข้อผิดพลาดระหว่างบันทึกข้อมูลไฟล์");
+                alert('เกิดข้อผิดพลาดระหว่างบันทึกข้อมูลไฟล์')
                 setIsloading(false)
                 return
             }
 
-            // alert("อัปโหลดสำเร็จ!");
+            // reset
+            setFile(null)
+            setCustomFileName('')
+            if (inputUsername.current) inputUsername.current.value = ''
+            if (inputFile.current) inputFile.current.value = ''
+            if (inputEditFileName.current) inputEditFileName.current.value = ''
+
             fetchFiles()
-            if (inputUsername.current && inputFile.current) {
-                inputUsername.current.value = ''
-                inputFile.current.value = ''
-            }
         },
-        [file, user, supabase, fetchFiles]
+        [file, user, customFileName, supabase, fetchFiles]
     )
 
     const downloadFile = useCallback(
@@ -94,11 +105,7 @@ export default function Page() {
                 .from('files')
                 .download(path)
 
-            if (error || !data) {
-                // console.log(error)
-                // setIsloading(false)
-                return
-            }
+            if (error || !data) return
 
             const url = URL.createObjectURL(data)
             const a = document.createElement('a')
@@ -119,19 +126,20 @@ export default function Page() {
     const handleDelete = useCallback(
         async (id: number, path: string) => {
             setIsloading(true)
+
             const { error } = await supabase.from('files').delete().eq('id', id)
+
             const res = await supabase.storage.from('files').remove([path])
 
             if (error) {
                 console.log(error)
-                alert("ลบไม่สำเร็จ");
+                alert('ลบไม่สำเร็จ')
             }
 
             if (res.error) {
                 console.log(res.error)
             }
 
-            // alert("ลบสำเร็จ");
             fetchFiles()
         },
         [supabase, fetchFiles]
@@ -144,22 +152,23 @@ export default function Page() {
     return (
         <div className="flex min-h-screen w-screen items-center justify-center bg-black p-6 text-gray-300">
             <div className="w-full max-w-lg space-y-12">
-                <h1 className="text-center text-3xl font-light tracking-wider select-none">
+                <h1 className="select-none text-center text-3xl font-light tracking-wider">
                     <span className="text-cyan-400">Upload</span> File
                 </h1>
 
-                <div className="max-h-[40vh] space-y-2 overflow-auto select-none">
+                <div className="max-h-[40vh] select-none space-y-2 overflow-auto">
                     <div className="flex justify-end gap-3">
                         <div className="text-sm text-sky-500">
                             refresh button
                         </div>
                         <div
                             className="w-fit cursor-pointer rounded-lg border p-0.5 transition-all ease-in hover:scale-95 hover:border-black hover:bg-white hover:text-black active:scale-75"
-                            onClick={() => refresh()}
+                            onClick={refresh}
                         >
                             <RefreshCcw size={18} />
                         </div>
                     </div>
+
                     {isLoading ? (
                         <div className="flex justify-center">
                             <div className="w-fit animate-spin">
@@ -185,7 +194,7 @@ export default function Page() {
                                     }
                                     className="flex w-full cursor-pointer items-center justify-between border-b border-gray-800 px-4 py-3 text-sm transition-colors duration-300 hover:border-cyan-500"
                                 >
-                                    {item.file_name}{' '}
+                                    {item.file_name}
                                     <div className="text-sm font-light text-gray-400/80">
                                         {item.user_name}
                                     </div>
@@ -219,6 +228,17 @@ export default function Page() {
                             )
                         }
                         className="w-full border-b border-gray-700 bg-transparent px-0 py-2 text-white placeholder-gray-600 outline-none transition-colors focus:border-cyan-400"
+                    />
+
+                    <input
+                        type="text"
+                        disabled={file === null}
+                        placeholder="Edit file name (optional)"
+                        ref={inputEditFileName}
+                        onChange={(e) =>
+                            setCustomFileName(e.target.value.trim())
+                        }
+                        className={`${file === null && 'hidden'} w-full border-b border-gray-700 bg-transparent px-0 py-2 text-white placeholder-gray-600 outline-none transition-colors focus:border-cyan-400`}
                     />
 
                     <input
