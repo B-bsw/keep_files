@@ -52,10 +52,12 @@ export default function Page() {
 
             //edit file name
             const ext = file.name.split('.').pop()
+            const beforeEditFileName = file.name.split('.')
+
             const finalFileName =
                 customFileName.trim() !== ''
-                    ? `${customFileName}.${ext}`
-                    : file.name
+                    ? `${customFileName}.${ext?.toLowerCase()}`
+                    : `${beforeEditFileName[0]}.${ext?.toLowerCase()}`
 
             const filePath = `uploads/${finalFileName}`
 
@@ -202,7 +204,7 @@ export default function Page() {
                                     </div>
                                 </div>
                                 <div
-                                    className="cursor-pointer rounded-lg border p-0.5 transition-all ease-in hover:scale-95 hover:border-black hover:bg-white hover:text-black active:scale-75"
+                                    className="cursor-pointer rounded-lg border p-0.5 transition-all ease-in hover:scale-95 hover:border-black hover:bg-white hover:text-black active:scale-75 active:border-black active:bg-red-500 active:text-black"
                                     onClick={() =>
                                         handleDelete(item.id, item.file_path)
                                     }
