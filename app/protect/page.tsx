@@ -7,13 +7,20 @@ import { useState } from 'react'
 export default function Page() {
     const [type, setType] = useState<string | null>(null)
     const [showPassword, setShowPassword] = useState<boolean>(false)
+    const [warningPassword, setWarningPassword] = useState<boolean>(false)
     const router = useRouter()
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault()
+        if (!process.env.NEXT_PUBLIC_KEY) {
+            alert('ไม่ได้ตั้งค่า key ไว้')
+            return
+        }
         if (type === process.env.NEXT_PUBLIC_KEY) {
             document.cookie = `files_access=${process.env.NEXT_PUBLIC_KEY}; path=/; max-age=15;`
             router.push('/files')
+        } else {
+            setWarningPassword(true)
         }
     }
 
@@ -25,7 +32,7 @@ export default function Page() {
                         <span className="text-cyan-400">Access</span> Point
                     </h1>
 
-                    <form onSubmit={handleSubmit} className="space-y-6">
+                    <form onSubmit={handleSubmit} className="space-y-5">
                         <div>
                             <label className="mb-2 block text-sm font-medium tracking-wide text-gray-400">
                                 Password
@@ -52,6 +59,11 @@ export default function Page() {
                                     )}
                                 </button>
                             </div>
+                            {warningPassword && (
+                                <div className="mt-2 text-sm font-light text-red-500">
+                                    Password is wrong
+                                </div>
+                            )}
                         </div>
 
                         <button
