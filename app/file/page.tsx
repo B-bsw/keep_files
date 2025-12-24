@@ -157,6 +157,12 @@ export default function Page() {
         fetchFiles()
     }, [fetchFiles])
 
+    useEffect(() => {
+        const nameFile = file?.name.split('.')[0]
+        if (inputEditFileName.current)
+            inputEditFileName.current.value = nameFile ? nameFile : ''
+    }, [file])
+
     return (
         <div className="flex min-h-screen w-screen items-center justify-center bg-black p-6 text-gray-300">
             <div className="w-full max-w-lg space-y-12">
@@ -176,7 +182,7 @@ export default function Page() {
                             <RefreshCcw size={18} />
                         </div>
                     </div>
-                    <div className='max-h-[40vh] overflow-auto scll rounded-sm'>
+                    <div className="scll max-h-[40vh] overflow-auto rounded-sm">
                         {isLoading ? (
                             <div className="flex justify-center">
                                 <div className="w-fit animate-spin">
