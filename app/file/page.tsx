@@ -51,7 +51,10 @@ export default function Page() {
             setIsloading(true)
 
             //edit file name
-            const ext = file.name.split('.').pop()
+            const ext =
+                file.name.split('.').pop() === 'jpeg'
+                    ? 'jpg'
+                    : file.name.split('.').pop()
             const beforeEditFileName = file.name.split('.')
 
             const finalFileName =
@@ -115,6 +118,7 @@ export default function Page() {
             const a = document.createElement('a')
             a.href = url
             a.download = name
+            // a.target = 'blank'
             a.click()
             a.remove()
             URL.revokeObjectURL(url)
@@ -160,7 +164,7 @@ export default function Page() {
                     <span className="text-cyan-400">Upload</span> File
                 </h1>
 
-                <div className="max-h-[40vh] select-none space-y-2 overflow-auto">
+                <div className="max-h-[40vh] select-none space-y-2">
                     <div className="flex justify-end gap-3">
                         <div className="text-sm text-sky-500">
                             refresh button
@@ -172,48 +176,52 @@ export default function Page() {
                             <RefreshCcw size={18} />
                         </div>
                     </div>
-
-                    {isLoading ? (
-                        <div className="flex justify-center">
-                            <div className="w-fit animate-spin">
-                                <Loader />
+                    <div className='max-h-[40vh] overflow-auto scll rounded-sm'>
+                        {isLoading ? (
+                            <div className="flex justify-center">
+                                <div className="w-fit animate-spin">
+                                    <Loader />
+                                </div>
                             </div>
-                        </div>
-                    ) : ListFiles?.length === 0 ? (
-                        <p className="py-8 text-center text-sm text-gray-600">
-                            No files uploaded yet
-                        </p>
-                    ) : (
-                        ListFiles?.map((item) => (
-                            <div
-                                key={item.id}
-                                className="flex items-center gap-3"
-                            >
+                        ) : ListFiles?.length === 0 ? (
+                            <p className="py-8 text-center text-sm text-gray-600">
+                                No files uploaded yet
+                            </p>
+                        ) : (
+                            ListFiles?.map((item) => (
                                 <div
-                                    onClick={() =>
-                                        downloadFile(
-                                            item.file_path,
-                                            item.file_name
-                                        )
-                                    }
-                                    className="flex w-full cursor-pointer items-center justify-between border-b border-gray-800 px-4 py-3 text-sm transition-colors duration-300 hover:border-cyan-500"
+                                    key={item.id}
+                                    className="flex items-center gap-3"
                                 >
-                                    {item.file_name}
-                                    <div className="text-sm font-light text-gray-400/80">
-                                        {item.user_name}
+                                    <div
+                                        onClick={() =>
+                                            downloadFile(
+                                                item.file_path,
+                                                item.file_name
+                                            )
+                                        }
+                                        className="flex w-full cursor-pointer items-center justify-between border-b border-gray-800 px-4 py-3 text-sm transition-colors duration-300 hover:border-cyan-500"
+                                    >
+                                        {item.file_name}
+                                        <div className="text-sm font-light text-gray-400/80">
+                                            {item.user_name}
+                                        </div>
+                                    </div>
+                                    <div
+                                        className="cursor-pointer rounded-lg border p-0.5 transition-all ease-in hover:scale-95 hover:border-black hover:bg-white hover:text-black active:scale-75 active:border-black active:bg-red-500 active:text-black"
+                                        onClick={() =>
+                                            handleDelete(
+                                                item.id,
+                                                item.file_path
+                                            )
+                                        }
+                                    >
+                                        <X size={18} />
                                     </div>
                                 </div>
-                                <div
-                                    className="cursor-pointer rounded-lg border p-0.5 transition-all ease-in hover:scale-95 hover:border-black hover:bg-white hover:text-black active:scale-75 active:border-black active:bg-red-500 active:text-black"
-                                    onClick={() =>
-                                        handleDelete(item.id, item.file_path)
-                                    }
-                                >
-                                    <X size={18} />
-                                </div>
-                            </div>
-                        ))
-                    )}
+                            ))
+                        )}
+                    </div>
                 </div>
 
                 <form

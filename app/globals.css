@@ -58,6 +58,11 @@
     }
 }
 
+.scll::-webkit-scrollbar {
+  /*width: 0px;*/
+  display: none;
+}
+
 /*@layer base {
   * {
     @apply border-border;
