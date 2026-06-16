@@ -1,19 +1,4 @@
-version: '3.8'
-
 services:
-  db:
-    image: mysql:8
-    restart: always
-    environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      MYSQL_DATABASE: ${MYSQL_DATABASE}
-      MYSQL_USER: ${MYSQL_USER}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
-    volumes:
-      - db_data:/var/lib/mysql
-    ports:
-      - "3306:3306"
-
   api:
     build:
       context: ./backend
@@ -27,11 +12,8 @@ services:
       - ACCESS_KEY=${ACCESS_KEY}
     volumes:
       - ./uploads:/app/uploads
-    depends_on:
-      - db
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     # Run prisma db push before starting the app
     command: >
       sh -c "bunx prisma db push && bun run index.ts"
-
-volumes:
-  db_data:

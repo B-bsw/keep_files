@@ -13,10 +13,19 @@ export async function GET() {
       },
     });
 
-    if (!res.ok) throw new Error('Failed to fetch files');
+    if (!res.ok) {
+      const errText = await res.text();
+      try {
+        const errJson = JSON.parse(errText);
+        return NextResponse.json(errJson, { status: res.status });
+      } catch {
+        return NextResponse.json({ error: 'Failed to fetch files', details: errText }, { status: res.status });
+      }
+    }
+
     const data = await res.json();
     return NextResponse.json(data);
   } catch (error) {
-    return NextResponse.json({ error: 'Failed to fetch files' }, { status: 500 });
+    return NextResponse.json({ error: 'Cannot connect to API server' }, { status: 503 });
   }
 }

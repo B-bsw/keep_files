@@ -36,6 +36,7 @@ const getFileIcon = (mimeType: string) => {
 export default function Dashboard() {
   const [files, setFiles] = useState<FileData[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -43,15 +44,22 @@ export default function Dashboard() {
 
   const fetchFiles = async () => {
     try {
+      setError(null);
       const res = await fetch('/api/files');
       if (res.ok) {
         const data = await res.json();
         setFiles(data);
       } else if (res.status === 401) {
         router.push('/login');
+      } else if (res.status === 503) {
+        const errData = await res.json().catch(() => ({}));
+        setError(errData.message || "Unable to connect to the database. Please ensure the database service is running.");
+      } else {
+        setError("Unable to connect to the server. Please try again later.");
       }
-    } catch (error) {
-      console.error(error);
+    } catch (err) {
+      console.error(err);
+      setError("Unable to connect to the server. Please try again later.");
     } finally {
       setLoading(false);
     }
@@ -213,7 +221,21 @@ export default function Dashboard() {
             </span>
           </h2>
 
-          {loading ? (
+          {error ? (
+            <div className="text-center py-20 border border-red-500/20 rounded-3xl bg-red-500/5">
+              <div className="w-16 h-16 rounded-full bg-red-500/20 flex items-center justify-center mx-auto mb-4">
+                <Trash2 className="w-8 h-8 text-red-400" />
+              </div>
+              <h3 className="text-xl font-semibold text-red-400 mb-2">Connection Error</h3>
+              <p className="text-gray-400 mb-6 max-w-md mx-auto">{error}</p>
+              <button 
+                onClick={() => { setLoading(true); fetchFiles(); }}
+                className="px-6 py-3 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-xl transition-colors font-medium"
+              >
+                Try Again
+              </button>
+            </div>
+          ) : loading ? (
             <div className="flex justify-center py-20">
               <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
             </div>

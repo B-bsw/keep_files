@@ -38,6 +38,28 @@ const app = new Elysia()
   })
   .get("/", () => "Keep Files API")
   .get("/health", () => ({ status: "ok" }))
+  .onError(({ code, error, set }) => {
+    console.error(`[API Error - ${code}]:`, error);
+    
+    if (error.message?.includes("Can't reach database") || error.message?.includes("Invalid `prisma.") || error.name === "PrismaClientInitializationError") {
+      set.status = 503;
+      return { 
+        error: "Database Connection Error", 
+        message: "Unable to connect to the database. Please ensure the database service is running." 
+      };
+    }
+
+    if (code === 'NOT_FOUND') {
+      set.status = 404;
+      return { error: "Not Found", message: "The requested resource could not be found." };
+    }
+    
+    set.status = 500;
+    return {
+      error: "Internal Server Error",
+      message: error.message || "An unexpected error occurred"
+    };
+  })
   .post("/auth/verify", ({ isAuthenticated }) => ({ valid: isAuthenticated }))
   .get("/files", async () => {
     const files = await prisma.file.findMany({
