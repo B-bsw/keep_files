@@ -18,7 +18,12 @@ if (!existsSync(UPLOAD_DIR)) {
 const authMiddleware = (app: Elysia) =>
   app.derive(({ request }) => {
     const authHeader = request.headers.get("x-access-key") || request.headers.get("authorization");
-    const token = authHeader?.replace("Bearer ", "");
+    let token = authHeader?.replace("Bearer ", "");
+    
+    if (!token) {
+      const url = new URL(request.url);
+      token = url.searchParams.get("key") || undefined;
+    }
     
     return {
       isAuthenticated: token === ACCESS_KEY,
