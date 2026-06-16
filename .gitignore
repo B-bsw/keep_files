@@ -3,3 +3,6 @@
 
 # os file
 *.DS_Store
+
+# docker
+/uploads
