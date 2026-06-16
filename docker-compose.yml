@@ -1,0 +1,37 @@
+version: '3.8'
+
+services:
+  db:
+    image: mysql:8
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    volumes:
+      - db_data:/var/lib/mysql
+    ports:
+      - "3306:3306"
+
+  api:
+    build:
+      context: ./keep_files_api
+    restart: always
+    ports:
+      - "3001:3001"
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - UPLOAD_DIR=/app/uploads
+      - PUBLIC_API_URL=${PUBLIC_API_URL}
+      - ACCESS_KEY=${ACCESS_KEY}
+    volumes:
+      - ./uploads:/app/uploads
+    depends_on:
+      - db
+    # Run prisma db push before starting the app
+    command: >
+      sh -c "bunx prisma db push && bun run index.ts"
+
+volumes:
+  db_data:
