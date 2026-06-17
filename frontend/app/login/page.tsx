@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Lock, ArrowRight, Loader2 } from 'lucide-react';
+import { Card, TextField, Label, Input, FieldError, Button } from '@heroui/react';
 
 export default function LoginPage() {
   const [key, setKey] = useState('');
@@ -44,57 +45,50 @@ export default function LoginPage() {
         transition={{ duration: 0.5 }}
         className="w-full max-w-md p-8"
       >
-        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-8 shadow-2xl">
-          <div className="flex justify-center mb-8">
-            <div className="w-16 h-16 rounded-full bg-indigo-500/20 flex items-center justify-center border border-indigo-500/30">
-              <Lock className="w-8 h-8 text-indigo-400" />
-            </div>
-          </div>
-          
-          <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-white mb-2 tracking-tight">Keep Files</h1>
-            <p className="text-gray-400">Enter your access key to continue</p>
-          </div>
-
-          <form onSubmit={handleLogin} className="space-y-6">
-            <div>
-              <div className="relative group">
-                <input
-                  type="password"
-                  value={key}
-                  onChange={(e) => setKey(e.target.value)}
-                  placeholder="Enter Access Key"
-                  className="w-full bg-black/50 border border-white/10 rounded-xl px-5 py-4 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all duration-300"
-                  required
-                />
+        <Card className="bg-white/5 backdrop-blur-xl border border-white/10 shadow-2xl">
+          <Card.Content className="p-8">
+            <div className="flex justify-center mb-8">
+              <div className="w-16 h-16 rounded-full bg-indigo-500/20 flex items-center justify-center border border-indigo-500/30">
+                <Lock className="w-8 h-8 text-indigo-400" />
               </div>
-              {error && (
-                <motion.p 
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  className="text-red-400 text-sm mt-2 ml-1"
-                >
-                  {error}
-                </motion.p>
-              )}
+            </div>
+            
+            <div className="text-center mb-8">
+              <h1 className="text-3xl font-bold text-white mb-2 tracking-tight">Keep Files</h1>
+              <p className="text-gray-400">Enter your access key to continue</p>
             </div>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl px-5 py-4 font-medium flex items-center justify-center gap-2 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed group"
-            >
-              {loading ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
-              ) : (
-                <>
-                  Continue
-                  <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                </>
-              )}
-            </button>
-          </form>
-        </div>
+            <form onSubmit={handleLogin} className="space-y-6">
+              <div>
+                <TextField
+                  isRequired
+                  isInvalid={!!error}
+                  value={key}
+                  onChange={setKey}
+                  className="w-full"
+                >
+                  <Label className="sr-only">Access Key</Label>
+                  <Input
+                    type="password"
+                    placeholder="Enter Access Key"
+                    className="w-full bg-black/50 border-white/10 hover:border-white/20 focus:border-indigo-500 rounded-lg p-3 text-lg"
+                  />
+                  {error && <FieldError>{error}</FieldError>}
+                </TextField>
+              </div>
+
+              <Button
+                type="submit"
+                isPending={loading}
+                size="lg"
+                className="w-full font-medium"
+              >
+                Continue
+                {!loading && <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />}
+              </Button>
+            </form>
+          </Card.Content>
+        </Card>
       </motion.div>
     </div>
   );

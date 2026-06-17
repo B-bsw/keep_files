@@ -1,12 +1,13 @@
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import {
-  CheckSquare,
   Square,
   Trash2,
   ChevronDown,
   LayoutGrid,
   List,
+  SquareCheck,
 } from "lucide-react";
+import { Button, Dropdown, ButtonGroup, Label } from "@heroui/react";
 import { SortOption } from "../../types";
 
 const SORT_LABELS: Record<SortOption, string> = {
@@ -28,8 +29,6 @@ type FileToolbarProps = {
   setViewMode: (mode: "grid" | "list") => void;
   sortOption: SortOption;
   setSortOption: (opt: SortOption) => void;
-  sortDropdownOpen: boolean;
-  setSortDropdownOpen: (open: boolean) => void;
 };
 
 export function FileToolbar({
@@ -42,8 +41,6 @@ export function FileToolbar({
   setViewMode,
   sortOption,
   setSortOption,
-  sortDropdownOpen,
-  setSortDropdownOpen,
 }: FileToolbarProps) {
   return (
     <div className="flex items-center justify-between mb-6">
@@ -57,93 +54,87 @@ export function FileToolbar({
 
         {filesCount > 0 && (
           <div className="flex items-center gap-3 ml-4 pl-4 border-l border-white/10">
-            <button
-              onClick={onToggleSelectAll}
-              className="flex items-center gap-2 text-sm text-gray-400 hover:text-white transition-colors"
+            <Button
+              onPress={onToggleSelectAll}
+              variant="ghost"
+              className="text-gray-400 hover:text-white"
             >
               {isAllSelected ? (
-                <CheckSquare className="w-5 h-5 text-indigo-400" />
+                <SquareCheck className="w-5 h-5 text-indigo-400" />
               ) : (
                 <Square className="w-5 h-5" />
               )}
               Select All
-            </button>
+            </Button>
 
             {selectedCount > 0 && (
-              <motion.button
+              <motion.div
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
-                onClick={onBulkDelete}
-                className="flex items-center gap-2 text-sm text-red-400 hover:text-red-300 bg-red-500/10 hover:bg-red-500/20 px-3 py-1.5 rounded-lg transition-colors"
               >
-                <Trash2 className="w-4 h-4" />
-                Delete ({selectedCount})
-              </motion.button>
+                <Button onPress={onBulkDelete} variant="danger">
+                  <Trash2 className="w-4 h-4" />
+                  Delete ({selectedCount})
+                </Button>
+              </motion.div>
             )}
           </div>
         )}
       </div>
 
       <div className="flex items-center gap-3">
-        {/* Sort Dropdown */}
-        <div className="relative">
-          <button
-            onClick={() => setSortDropdownOpen(!sortDropdownOpen)}
-            className="flex items-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300 text-sm rounded-xl px-4 py-2 transition-colors focus:outline-none"
+        <Dropdown>
+          <Button
+            variant="secondary"
+            className="bg-white/5 border border-white/10 text-gray-300"
           >
             {SORT_LABELS[sortOption]}
             <ChevronDown className="w-4 h-4 opacity-50" />
-          </button>
+          </Button>
+          <Dropdown.Popover>
+            <Dropdown.Menu
+              aria-label="Sort options"
+              selectedKeys={new Set([sortOption])}
+              selectionMode="single"
+              onSelectionChange={(keys) =>
+                setSortOption(Array.from(keys)[0] as SortOption)
+              }
+            >
+              {(Object.entries(SORT_LABELS) as [SortOption, string][]).map(
+                ([val, label]) => (
+                  <Dropdown.Item key={val} id={val} textValue={label}>
+                    <Label
+                      className={sortOption === val ? "text-indigo-400" : ""}
+                    >
+                      {label}
+                    </Label>
+                  </Dropdown.Item>
+                ),
+              )}
+            </Dropdown.Menu>
+          </Dropdown.Popover>
+        </Dropdown>
 
-          <AnimatePresence>
-            {sortDropdownOpen && (
-              <>
-                <div
-                  className="fixed inset-0 z-30"
-                  onClick={() => setSortDropdownOpen(false)}
-                />
-                <motion.div
-                  initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                  transition={{ duration: 0.15 }}
-                  className="absolute right-0 mt-2 w-48 bg-[#111] border border-white/10 rounded-xl shadow-2xl z-40 overflow-hidden"
-                >
-                  {(Object.entries(SORT_LABELS) as [SortOption, string][]).map(
-                    ([val, label]) => (
-                      <button
-                        key={val}
-                        onClick={() => {
-                          setSortOption(val);
-                          setSortDropdownOpen(false);
-                        }}
-                        className={`w-full text-left px-4 py-2.5 text-sm transition-colors hover:bg-white/10 ${sortOption === val ? "text-indigo-400 bg-indigo-500/10" : "text-gray-300"}`}
-                      >
-                        {label}
-                      </button>
-                    ),
-                  )}
-                </motion.div>
-              </>
-            )}
-          </AnimatePresence>
-        </div>
-
-        {/* View Toggle */}
-        <div className="flex bg-white/5 p-1 rounded-xl border border-white/10">
-          <button
-            onClick={() => setViewMode("grid")}
-            className={`p-2 rounded-lg transition-colors ${viewMode === "grid" ? "bg-white/10 text-white shadow-sm" : "text-gray-400 hover:text-white"}`}
+        <ButtonGroup variant="secondary">
+          <Button
+            isIconOnly
+            onPress={() => setViewMode("grid")}
+            className={
+              viewMode === "grid" ? "bg-white/10 text-white" : "text-gray-400"
+            }
           >
             <LayoutGrid className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => setViewMode("list")}
-            className={`p-2 rounded-lg transition-colors ${viewMode === "list" ? "bg-white/10 text-white shadow-sm" : "text-gray-400 hover:text-white"}`}
+          </Button>
+          <Button
+            isIconOnly
+            onPress={() => setViewMode("list")}
+            className={
+              viewMode === "list" ? "bg-white/10 text-white" : "text-gray-400"
+            }
           >
             <List className="w-4 h-4" />
-          </button>
-        </div>
+          </Button>
+        </ButtonGroup>
       </div>
     </div>
   );

@@ -1,5 +1,6 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
+import Image from "next/image";
 
 type PreviewModalProps = {
   isOpen: boolean;
@@ -7,7 +8,11 @@ type PreviewModalProps = {
   onClose: () => void;
 };
 
-export function PreviewModal({ isOpen, previewUrl, onClose }: PreviewModalProps) {
+export function PreviewModal({
+  isOpen,
+  previewUrl,
+  onClose,
+}: PreviewModalProps) {
   return (
     <AnimatePresence>
       {isOpen && previewUrl && (
@@ -15,7 +20,7 @@ export function PreviewModal({ isOpen, previewUrl, onClose }: PreviewModalProps)
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-xl"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md"
           onClick={onClose}
         >
           <button
@@ -31,9 +36,10 @@ export function PreviewModal({ isOpen, previewUrl, onClose }: PreviewModalProps)
             className="relative max-w-5xl max-h-[90vh] w-full h-full flex items-center justify-center"
             onClick={(e) => e.stopPropagation()}
           >
-            <img
+            <Image
               src={previewUrl}
               alt="Preview"
+              fill
               className="max-w-full max-h-full object-contain rounded-lg"
             />
           </motion.div>
