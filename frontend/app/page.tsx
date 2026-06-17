@@ -155,7 +155,7 @@ export default function Dashboard() {
         
         setTimeout(() => {
           setUploadTasks(prev => prev.filter(t => t.id !== task.id));
-        }, 4000);
+        }, 500);
       } else {
         setUploadTasks(prev => prev.map(t => 
           t.id === task.id ? { ...t, status: 'error' } : t

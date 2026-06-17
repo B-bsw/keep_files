@@ -2,7 +2,7 @@ import { Elysia, t } from "elysia";
 import { cors } from "@elysiajs/cors";
 import { PrismaClient } from "@prisma/client";
 import { existsSync, mkdirSync } from "fs";
-import { unlink } from "fs/promises";
+import { unlink, appendFile } from "fs/promises";
 import path from "path";
 
 const prisma = new PrismaClient();
@@ -56,8 +56,13 @@ const app = new Elysia()
   })
   .get("/", () => "Keep Files API")
   .get("/health", () => ({ status: "ok" }))
-  .onError(({ code, error, set }) => {
-    console.error(`[API Error - ${code}]:`, error);
+  .onError(({ code, error, set, request }) => {
+    const timestamp = new Date().toISOString();
+    const logMsg = `[${timestamp}] [API Error - ${code}] ${request.method} ${request.url}\n${error.message}\n${error.stack || ''}\n----------------------------------------\n`;
+    
+    console.error(logMsg);
+    // Write to error.log
+    appendFile(path.join(process.cwd(), "error.log"), logMsg).catch(err => console.error("Failed to write to error.log", err));
     
     if (error.message?.includes("Can't reach database") || error.message?.includes("Invalid `prisma.") || error.name === "PrismaClientInitializationError") {
       set.status = 503;
