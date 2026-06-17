@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CloudUpload, File as FileIcon, Trash2, Download, LogOut, Loader2, FileText, Image as ImageIcon, Video, Music, Archive, LayoutGrid, List, X, Key, Eye } from 'lucide-react';
+import { CloudUpload, File as FileIcon, Trash2, Download, LogOut, Loader2, FileText, Image as ImageIcon, Video, Music, Archive, LayoutGrid, List, X, Key, Eye, CheckSquare, Square } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
 type FileData = {
@@ -49,6 +49,7 @@ export default function Dashboard() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
   const [previewModalOpen, setPreviewModalOpen] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
@@ -181,9 +182,50 @@ export default function Dashboard() {
       const res = await fetch(`/api/files/${id}`, { method: 'DELETE' });
       if (res.ok) {
         setFiles(files.filter(f => f.id !== id));
+        if (selectedFiles.has(id)) {
+          const newSelected = new Set(selectedFiles);
+          newSelected.delete(id);
+          setSelectedFiles(newSelected);
+        }
       }
     } catch (error) {
       console.error(error);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedFiles.size === 0) return;
+    if (!confirm(`Are you sure you want to delete ${selectedFiles.size} items?`)) return;
+    
+    try {
+      // Run deletions in parallel
+      await Promise.all(
+        Array.from(selectedFiles).map(id => fetch(`/api/files/${id}`, { method: 'DELETE' }))
+      );
+      
+      setFiles(files.filter(f => !selectedFiles.has(f.id)));
+      setSelectedFiles(new Set());
+    } catch (error) {
+      console.error(error);
+      alert('Error deleting some files');
+    }
+  };
+
+  const toggleSelection = (id: string) => {
+    const newSelected = new Set(selectedFiles);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedFiles(newSelected);
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedFiles.size === files.length) {
+      setSelectedFiles(new Set());
+    } else {
+      setSelectedFiles(new Set(files.map(f => f.id)));
     }
   };
 
@@ -313,12 +355,43 @@ export default function Dashboard() {
         {/* Files List */}
         <div>
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-semibold flex items-center gap-3">
-              Your Files
-              <span className="text-sm font-normal text-gray-500 bg-white/10 px-3 py-1 rounded-full">
-                {files.length}
-              </span>
-            </h2>
+            <div className="flex items-center gap-4">
+              <h2 className="text-2xl font-semibold flex items-center gap-3">
+                Your Files
+                <span className="text-sm font-normal text-gray-500 bg-white/10 px-3 py-1 rounded-full">
+                  {files.length}
+                </span>
+              </h2>
+              
+              {files.length > 0 && (
+                <div className="flex items-center gap-3 ml-4 pl-4 border-l border-white/10">
+                  <button
+                    onClick={toggleSelectAll}
+                    className="flex items-center gap-2 text-sm text-gray-400 hover:text-white transition-colors"
+                  >
+                    {selectedFiles.size === files.length ? (
+                      <CheckSquare className="w-5 h-5 text-indigo-400" />
+                    ) : (
+                      <Square className="w-5 h-5" />
+                    )}
+                    Select All
+                  </button>
+                  
+                  {selectedFiles.size > 0 && (
+                    <motion.button
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      onClick={handleBulkDelete}
+                      className="flex items-center gap-2 text-sm text-red-400 hover:text-red-300 bg-red-500/10 hover:bg-red-500/20 px-3 py-1.5 rounded-lg transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      Delete ({selectedFiles.size})
+                    </motion.button>
+                  )}
+                </div>
+              )}
+            </div>
+
             <div className="flex bg-white/5 p-1 rounded-xl border border-white/10">
               <button 
                 onClick={() => setViewMode('grid')}
@@ -369,12 +442,24 @@ export default function Dashboard() {
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.9 }}
                     className={viewMode === 'grid' 
-                      ? "group bg-white/5 border border-white/10 hover:border-white/20 rounded-2xl p-5 flex flex-col transition-all duration-300 hover:bg-white/[0.07]"
-                      : "group bg-white/5 border border-white/10 hover:border-white/20 rounded-2xl p-4 flex items-center gap-4 transition-all duration-300 hover:bg-white/[0.07]"}
+                      ? `relative group bg-white/5 border ${selectedFiles.has(file.id) ? 'border-indigo-500 bg-indigo-500/5' : 'border-white/10 hover:border-white/20 hover:bg-white/[0.07]'} rounded-2xl p-5 flex flex-col transition-all duration-300`
+                      : `group bg-white/5 border ${selectedFiles.has(file.id) ? 'border-indigo-500 bg-indigo-500/5' : 'border-white/10 hover:border-white/20 hover:bg-white/[0.07]'} rounded-2xl p-4 flex items-center gap-4 transition-all duration-300`}
                   >
                     <div className={viewMode === 'grid' ? "flex items-start justify-between mb-4" : "flex items-center gap-4 flex-1"}>
-                      <div className="p-3 bg-black/30 rounded-xl shrink-0">
-                        {getFileIcon(file.mimeType)}
+                      <div className="flex items-center gap-3 shrink-0">
+                        <button 
+                          onClick={() => toggleSelection(file.id)}
+                          className="text-gray-400 hover:text-white transition-colors"
+                        >
+                          {selectedFiles.has(file.id) ? (
+                            <CheckSquare className="w-5 h-5 text-indigo-400" />
+                          ) : (
+                            <Square className="w-5 h-5 opacity-50 group-hover:opacity-100" />
+                          )}
+                        </button>
+                        <div className="p-3 bg-black/30 rounded-xl">
+                          {getFileIcon(file.mimeType)}
+                        </div>
                       </div>
                       
                       <div className={viewMode === 'grid' ? "hidden" : "flex-1 min-w-0"}>
