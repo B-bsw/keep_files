@@ -52,6 +52,7 @@ export default function Dashboard() {
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
   const [previewModalOpen, setPreviewModalOpen] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [appConfig, setAppConfig] = useState<{apiUrl: string, accessKey: string} | null>(null);
 
   const router = useRouter();
 
@@ -80,6 +81,10 @@ export default function Dashboard() {
 
   useEffect(() => {
     fetchFiles();
+    fetch('/api/config')
+      .then(res => res.json())
+      .then(data => setAppConfig(data))
+      .catch(console.error);
   }, []);
 
   const handleLogout = async () => {
@@ -171,7 +176,13 @@ export default function Dashboard() {
       alert(`อัปโหลดไฟล์ ${task.file.name} ไม่สำเร็จ กรุณาตรวจสอบการเชื่อมต่อ`);
     });
 
-    xhr.open('POST', '/api/files/upload');
+    const uploadUrl = appConfig ? `${appConfig.apiUrl}/files/upload` : '/api/files/upload';
+    xhr.open('POST', uploadUrl);
+    
+    if (appConfig?.accessKey) {
+      xhr.setRequestHeader('x-access-key', appConfig.accessKey);
+    }
+    
     xhr.send(formData);
   };
 
