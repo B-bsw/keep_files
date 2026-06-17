@@ -4,7 +4,7 @@ export async function POST(request: Request) {
   try {
     const { key } = await request.json();
 
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+    const apiUrl = (process.env.API_URL || process.env.NEXT_PUBLIC_API_URL) || 'http://localhost:3001';
     const response = await fetch(`${apiUrl}/auth/verify`, {
       method: 'POST',
       headers: {

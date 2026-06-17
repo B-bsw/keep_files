@@ -4,7 +4,7 @@ import { cookies } from 'next/headers';
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const cookieStore = await cookies();
   const accessKey = cookieStore.get('access_key')?.value;
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+  const apiUrl = (process.env.API_URL || process.env.NEXT_PUBLIC_API_URL) || 'http://localhost:3001';
   const id = (await params).id;
 
   try {
