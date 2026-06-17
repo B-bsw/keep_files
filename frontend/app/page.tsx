@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
 import { Loader2, File as FileIcon, Trash2 } from "lucide-react";
 import { FileData, UploadTask, SortOption } from "../types";
 import { Header } from "../components/Header/Header";
@@ -11,6 +10,7 @@ import { UploadProgressList } from "../components/Progress/UploadProgressList";
 import { FileToolbar } from "../components/Toolbar/FileToolbar";
 import { FileCard } from "../components/Card/FileCard";
 import { PreviewModal } from "../components/Modal/PreviewModal";
+import { Button } from "@heroui/react";
 
 export default function Dashboard() {
   const [files, setFiles] = useState<FileData[]>([]);
@@ -29,7 +29,6 @@ export default function Dashboard() {
   } | null>(null);
 
   const [sortOption, setSortOption] = useState<SortOption>("date-desc");
-  const [sortDropdownOpen, setSortDropdownOpen] = useState(false);
 
   const sortedFiles = [...files].sort((a, b) => {
     switch (sortOption) {
@@ -313,8 +312,6 @@ export default function Dashboard() {
             setViewMode={setViewMode}
             sortOption={sortOption}
             setSortOption={setSortOption}
-            sortDropdownOpen={sortDropdownOpen}
-            setSortDropdownOpen={setSortDropdownOpen}
           />
 
           {error ? (
@@ -326,15 +323,16 @@ export default function Dashboard() {
                 Connection Error
               </h3>
               <p className="text-gray-400 mb-6 max-w-md mx-auto">{error}</p>
-              <button
-                onClick={() => {
+              <Button
+                onPress={() => {
                   setLoading(true);
                   fetchFiles();
                 }}
-                className="px-6 py-3 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-xl transition-colors font-medium"
+                variant="tertiary"
+                className="font-medium"
               >
                 Try Again
-              </button>
+              </Button>
             </div>
           ) : loading ? (
             <div className="flex justify-center py-20">
