@@ -10,6 +10,19 @@ const prisma = new PrismaClient();
 const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(process.cwd(), "uploads");
 const ACCESS_KEY = process.env.ACCESS_KEY || "default-key";
 
+// Store temporary short-lived tokens for file access
+const tempTokens = new Map<string, { fileId: string, expiresAt: number }>();
+
+// Cleanup expired tokens periodically
+setInterval(() => {
+  const now = Date.now();
+  for (const [token, data] of tempTokens.entries()) {
+    if (now > data.expiresAt) {
+      tempTokens.delete(token);
+    }
+  }
+}, 60 * 1000);
+
 // Ensure upload directory exists
 if (!existsSync(UPLOAD_DIR)) {
   mkdirSync(UPLOAD_DIR, { recursive: true });
@@ -34,7 +47,7 @@ const app = new Elysia()
   .use(cors())
   .use(authMiddleware)
   .onBeforeHandle(({ isAuthenticated, set, path }) => {
-    if (path === "/" || path === "/health") return;
+    if (path === "/" || path === "/health" || path.endsWith("/content")) return;
     
     if (!isAuthenticated) {
       set.status = 401;
@@ -138,9 +151,9 @@ const app = new Elysia()
 
     return { success: true, message: "File deleted successfully" };
   })
-  .get("/files/:id/download", async ({ params, set }) => {
+  .post("/files/:id/request-access", async ({ params, set }) => {
     const fileId = params.id;
-    
+
     const file = await prisma.file.findUnique({
       where: { id: fileId },
     });
@@ -150,32 +163,27 @@ const app = new Elysia()
       return { error: "File not found" };
     }
 
-    const filePath = path.join(UPLOAD_DIR, file.objectKey);
-    if (!existsSync(filePath)) {
-      set.status = 404;
-      return { error: "File physical content not found on server" };
-    }
+    const token = crypto.randomUUID();
+    // Token valid for 5 minutes
+    tempTokens.set(token, { fileId, expiresAt: Date.now() + 5 * 60 * 1000 });
 
-    // In local mode, since we don't have presigned URLs, 
-    // we could directly stream the file to the client through the API route.
-    // However, the proxy setup in frontend (`/api/files/[id]/download`) expects a `{ url: "..." }` response,
-    // so let's provide a local API url that bypasses some auth, OR better:
-    // Update the backend to just stream the file content, and we'll change the frontend download logic to fetch a Blob.
-    
-    // Actually, to make it simple without changing frontend much, we can provide a URL 
-    // that points to a new endpoint `/files/:id/content` with a temporary token, 
-    // or we just rely on passing the Access Key.
-    // Let's create an endpoint `/files/:id/content` that streams the file and we return that URL here.
-    
-    const downloadUrl = `${process.env.PUBLIC_API_URL || "http://localhost:3001"}/files/${file.id}/content?key=${process.env.ACCESS_KEY}`;
-    return { url: downloadUrl };
+    const downloadUrl = `${process.env.PUBLIC_API_URL || "http://localhost:3001"}/files/${file.id}/content?token=${token}`;
+    return { token, url: downloadUrl };
+  })
+  .get("/files/:id/download", async ({ params, set }) => {
+    // This endpoint is kept for backwards compatibility but shouldn't be used directly 
+    // to bypass the password prompt anymore, unless it relies on standard auth.
+    // However, the requirement says we MUST ask for a password to get a token.
+    set.status = 403;
+    return { error: "Please request access with a password first" };
   })
   .get("/files/:id/content", async ({ params, query, set }) => {
-    // This endpoint allows downloading the actual file content 
-    // using a query parameter key for simple link sharing/downloading.
-    if (query.key !== ACCESS_KEY) {
+    const { token } = query;
+    const tokenData = tempTokens.get(token as string);
+
+    if (!tokenData || tokenData.fileId !== params.id || Date.now() > tokenData.expiresAt) {
       set.status = 401;
-      return { error: "Unauthorized" };
+      return { error: "Invalid or expired token" };
     }
 
     const file = await prisma.file.findUnique({

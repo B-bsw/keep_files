@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CloudUpload, File as FileIcon, Trash2, Download, LogOut, Loader2, FileText, Image as ImageIcon, Video, Music, Archive } from 'lucide-react';
+import { CloudUpload, File as FileIcon, Trash2, Download, LogOut, Loader2, FileText, Image as ImageIcon, Video, Music, Archive, LayoutGrid, List, X, Key, Eye } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
 type FileData = {
@@ -40,6 +40,11 @@ export default function Dashboard() {
   const [uploading, setUploading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [previewModalOpen, setPreviewModalOpen] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
   const router = useRouter();
 
   const fetchFiles = async () => {
@@ -136,17 +141,27 @@ export default function Dashboard() {
     }
   };
 
-  const handleDownload = async (id: string) => {
+  const handleActionRequest = async (type: 'download' | 'preview', file: FileData) => {
     try {
-      const res = await fetch(`/api/files/${id}/download`);
+      const res = await fetch(`/api/files/${file.id}/request-access`, {
+        method: 'POST',
+      });
+
       if (res.ok) {
         const data = await res.json();
-        if (data.url) {
+
+        if (type === 'download') {
           window.open(data.url, '_blank');
+        } else if (type === 'preview') {
+          setPreviewUrl(data.url);
+          setPreviewModalOpen(true);
         }
+      } else {
+        alert('Failed to get file access token');
       }
     } catch (error) {
       console.error(error);
+      alert('Error requesting file access');
     }
   };
 
@@ -214,12 +229,28 @@ export default function Dashboard() {
 
         {/* Files List */}
         <div>
-          <h2 className="text-2xl font-semibold mb-6 flex items-center gap-3">
-            Your Files
-            <span className="text-sm font-normal text-gray-500 bg-white/10 px-3 py-1 rounded-full">
-              {files.length}
-            </span>
-          </h2>
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl font-semibold flex items-center gap-3">
+              Your Files
+              <span className="text-sm font-normal text-gray-500 bg-white/10 px-3 py-1 rounded-full">
+                {files.length}
+              </span>
+            </h2>
+            <div className="flex bg-white/5 p-1 rounded-xl border border-white/10">
+              <button 
+                onClick={() => setViewMode('grid')}
+                className={`p-2 rounded-lg transition-colors ${viewMode === 'grid' ? 'bg-white/10 text-white shadow-sm' : 'text-gray-400 hover:text-white'}`}
+              >
+                <LayoutGrid className="w-4 h-4" />
+              </button>
+              <button 
+                onClick={() => setViewMode('list')}
+                className={`p-2 rounded-lg transition-colors ${viewMode === 'list' ? 'bg-white/10 text-white shadow-sm' : 'text-gray-400 hover:text-white'}`}
+              >
+                <List className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
 
           {error ? (
             <div className="text-center py-20 border border-red-500/20 rounded-3xl bg-red-500/5">
@@ -245,7 +276,7 @@ export default function Dashboard() {
               <p className="text-xl text-gray-400">No files uploaded yet.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            <div className={viewMode === 'grid' ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6" : "flex flex-col gap-4"}>
               <AnimatePresence>
                 {files.map((file) => (
                   <motion.div
@@ -254,15 +285,37 @@ export default function Dashboard() {
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.9 }}
-                    className="group bg-white/5 border border-white/10 hover:border-white/20 rounded-2xl p-5 flex flex-col transition-all duration-300 hover:bg-white/[0.07]"
+                    className={viewMode === 'grid' 
+                      ? "group bg-white/5 border border-white/10 hover:border-white/20 rounded-2xl p-5 flex flex-col transition-all duration-300 hover:bg-white/[0.07]"
+                      : "group bg-white/5 border border-white/10 hover:border-white/20 rounded-2xl p-4 flex items-center gap-4 transition-all duration-300 hover:bg-white/[0.07]"}
                   >
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="p-3 bg-black/30 rounded-xl">
+                    <div className={viewMode === 'grid' ? "flex items-start justify-between mb-4" : "flex items-center gap-4 flex-1"}>
+                      <div className="p-3 bg-black/30 rounded-xl shrink-0">
                         {getFileIcon(file.mimeType)}
                       </div>
-                      <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      
+                      <div className={viewMode === 'grid' ? "hidden" : "flex-1 min-w-0"}>
+                        <h4 className="font-medium text-gray-200 truncate mb-1" title={file.originalName}>
+                          {file.originalName}
+                        </h4>
+                        <div className="flex items-center gap-4 text-xs text-gray-500">
+                          <span>{formatBytes(file.size)}</span>
+                          <span>{formatDistanceToNow(new Date(file.uploadDate), { addSuffix: true })}</span>
+                        </div>
+                      </div>
+
+                      <div className={`flex gap-2 ${viewMode === 'grid' ? 'opacity-0 group-hover:opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity`}>
+                        {file.mimeType.startsWith('image/') && (
+                          <button
+                            onClick={() => handleActionRequest('preview', file)}
+                            className="p-2 hover:bg-indigo-500/20 rounded-lg text-gray-400 hover:text-indigo-400 transition-colors"
+                            title="Preview Image"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </button>
+                        )}
                         <button
-                          onClick={() => handleDownload(file.id)}
+                          onClick={() => handleActionRequest('download', file)}
                           className="p-2 hover:bg-white/10 rounded-lg text-gray-400 hover:text-white transition-colors"
                           title="Download"
                         >
@@ -278,18 +331,22 @@ export default function Dashboard() {
                       </div>
                     </div>
                     
-                    <h4 className="font-medium text-gray-200 truncate mb-1" title={file.originalName}>
-                      {file.originalName}
-                    </h4>
-                    
-                    <div className="flex justify-between items-center mt-auto pt-4 border-t border-white/5">
-                      <span className="text-xs text-gray-500">
-                        {formatBytes(file.size)}
-                      </span>
-                      <span className="text-xs text-gray-500">
-                        {formatDistanceToNow(new Date(file.uploadDate), { addSuffix: true })}
-                      </span>
-                    </div>
+                    {viewMode === 'grid' && (
+                      <>
+                        <h4 className="font-medium text-gray-200 truncate mb-1" title={file.originalName}>
+                          {file.originalName}
+                        </h4>
+                        
+                        <div className="flex justify-between items-center mt-auto pt-4 border-t border-white/5">
+                          <span className="text-xs text-gray-500">
+                            {formatBytes(file.size)}
+                          </span>
+                          <span className="text-xs text-gray-500">
+                            {formatDistanceToNow(new Date(file.uploadDate), { addSuffix: true })}
+                          </span>
+                        </div>
+                      </>
+                    )}
                   </motion.div>
                 ))}
               </AnimatePresence>
@@ -297,6 +354,39 @@ export default function Dashboard() {
           )}
         </div>
       </main>
+
+      {/* Image Preview Modal */}
+      <AnimatePresence>
+        {previewModalOpen && previewUrl && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-xl"
+            onClick={() => setPreviewModalOpen(false)}
+          >
+            <button 
+              onClick={() => setPreviewModalOpen(false)}
+              className="absolute top-6 right-6 p-3 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors z-50"
+            >
+              <X className="w-6 h-6" />
+            </button>
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="relative max-w-5xl max-h-[90vh] w-full h-full flex items-center justify-center"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <img 
+                src={previewUrl} 
+                alt="Preview" 
+                className="max-w-full max-h-full object-contain rounded-lg"
+              />
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
