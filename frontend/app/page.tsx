@@ -119,9 +119,13 @@ export default function Dashboard() {
 
       if (res.ok) {
         await fetchFiles();
+      } else {
+        const errorData = await res.json().catch(() => ({}));
+        alert(`อัปโหลดไฟล์ไม่สำเร็จ: ${errorData.message || res.statusText || 'เกิดข้อผิดพลาด'}`);
       }
     } catch (error) {
       console.error(error);
+      alert('อัปโหลดไฟล์ไม่สำเร็จ กรุณาตรวจสอบการเชื่อมต่อ');
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
