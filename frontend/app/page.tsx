@@ -1,10 +1,30 @@
 "use client";
 
-import { useEffect, useState, useRef } from 'react';
-import { useRouter } from 'next/navigation';
-import { motion, AnimatePresence } from 'framer-motion';
-import { CloudUpload, File as FileIcon, Trash2, Download, LogOut, Loader2, FileText, Image as ImageIcon, Video, Music, Archive, LayoutGrid, List, X, Key, Eye, CheckSquare, Square } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
+import { useEffect, useState, useRef } from "react";
+import { useRouter } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  CloudUpload,
+  File as FileIcon,
+  Trash2,
+  Download,
+  LogOut,
+  Loader2,
+  FileText,
+  Image as ImageIcon,
+  Video,
+  Music,
+  Archive,
+  LayoutGrid,
+  List,
+  X,
+  Key,
+  Eye,
+  CheckSquare,
+  Square,
+  ChevronDown,
+} from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
 
 type FileData = {
   id: string;
@@ -19,24 +39,33 @@ type UploadTask = {
   id: string;
   file: File;
   progress: number;
-  status: 'uploading' | 'success' | 'error';
+  status: "uploading" | "success" | "error";
 };
 
 const formatBytes = (bytes: number, decimals = 2) => {
-  if (bytes === 0) return '0 Bytes';
+  if (bytes === 0) return "0 Bytes";
   const k = 1024;
   const dm = decimals < 0 ? 0 : decimals;
-  const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+  const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + " " + sizes[i];
 };
 
 const getFileIcon = (mimeType: string) => {
-  if (mimeType.startsWith('image/')) return <ImageIcon className="w-8 h-8 text-blue-400" />;
-  if (mimeType.startsWith('video/')) return <Video className="w-8 h-8 text-purple-400" />;
-  if (mimeType.startsWith('audio/')) return <Music className="w-8 h-8 text-pink-400" />;
-  if (mimeType.includes('zip') || mimeType.includes('tar') || mimeType.includes('rar')) return <Archive className="w-8 h-8 text-orange-400" />;
-  if (mimeType.includes('pdf') || mimeType.includes('text/')) return <FileText className="w-8 h-8 text-green-400" />;
+  if (mimeType.startsWith("image/"))
+    return <ImageIcon className="w-8 h-8 text-blue-400" />;
+  if (mimeType.startsWith("video/"))
+    return <Video className="w-8 h-8 text-purple-400" />;
+  if (mimeType.startsWith("audio/"))
+    return <Music className="w-8 h-8 text-pink-400" />;
+  if (
+    mimeType.includes("zip") ||
+    mimeType.includes("tar") ||
+    mimeType.includes("rar")
+  )
+    return <Archive className="w-8 h-8 text-orange-400" />;
+  if (mimeType.includes("pdf") || mimeType.includes("text/"))
+    return <FileText className="w-8 h-8 text-green-400" />;
   return <FileIcon className="w-8 h-8 text-gray-400" />;
 };
 
@@ -47,27 +76,75 @@ export default function Dashboard() {
   const [uploadTasks, setUploadTasks] = useState<UploadTask[]>([]);
   const [dragActive, setDragActive] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
   const [previewModalOpen, setPreviewModalOpen] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [appConfig, setAppConfig] = useState<{apiUrl: string, accessKey: string} | null>(null);
+  const [appConfig, setAppConfig] = useState<{
+    apiUrl: string;
+    accessKey: string;
+  } | null>(null);
+
+  type SortOption =
+    | "date-desc"
+    | "date-asc"
+    | "size-desc"
+    | "size-asc"
+    | "name-asc"
+    | "name-desc";
+  const [sortOption, setSortOption] = useState<SortOption>("date-desc");
+  const [sortDropdownOpen, setSortDropdownOpen] = useState(false);
+
+  const SORT_LABELS: Record<SortOption, string> = {
+    "date-desc": "Newest First",
+    "date-asc": "Oldest First",
+    "size-desc": "Largest First",
+    "size-asc": "Smallest First",
+    "name-asc": "Name (A-Z)",
+    "name-desc": "Name (Z-A)",
+  };
+
+  const sortedFiles = [...files].sort((a, b) => {
+    switch (sortOption) {
+      case "date-desc":
+        return (
+          new Date(b.uploadDate).getTime() - new Date(a.uploadDate).getTime()
+        );
+      case "date-asc":
+        return (
+          new Date(a.uploadDate).getTime() - new Date(b.uploadDate).getTime()
+        );
+      case "size-desc":
+        return b.size - a.size;
+      case "size-asc":
+        return a.size - b.size;
+      case "name-asc":
+        return a.originalName.localeCompare(b.originalName);
+      case "name-desc":
+        return b.originalName.localeCompare(a.originalName);
+      default:
+        return 0;
+    }
+  });
 
   const router = useRouter();
 
   const fetchFiles = async () => {
     try {
       setError(null);
-      const res = await fetch('/api/files');
+      const res = await fetch("/api/files");
       if (res.ok) {
         const data = await res.json();
         setFiles(data);
       } else if (res.status === 401) {
-        router.push('/login');
+        router.push("/login");
       } else if (res.status === 503) {
         const errData = await res.json().catch(() => ({}));
-        setError(errData.message || "Unable to connect to the database. Please ensure the database service is running.");
+        setError(
+          errData.message ||
+            "Unable to connect to the database. Please ensure the database service is running.",
+        );
       } else {
         setError("Unable to connect to the server. Please try again later.");
       }
@@ -81,15 +158,27 @@ export default function Dashboard() {
 
   useEffect(() => {
     fetchFiles();
-    fetch('/api/config')
-      .then(res => res.json())
-      .then(data => setAppConfig(data))
+    fetch("/api/config")
+      .then((res) => res.json())
+      .then((data) => setAppConfig(data))
       .catch(console.error);
   }, []);
 
+  useEffect(() => {
+    const hasUploading = uploadTasks.some((t) => t.status === "uploading");
+    const hasSuccess = uploadTasks.some((t) => t.status === "success");
+
+    if (!hasUploading && hasSuccess) {
+      const timer = setTimeout(() => {
+        setUploadTasks((prev) => prev.filter((t) => t.status !== "success"));
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [uploadTasks]);
+
   const handleLogout = async () => {
-    await fetch('/api/auth/logout', { method: 'POST' });
-    router.push('/login');
+    await fetch("/api/auth/logout", { method: "POST" });
+    router.push("/login");
   };
 
   const handleDrag = (e: React.DragEvent) => {
@@ -119,80 +208,80 @@ export default function Dashboard() {
   };
 
   const handleMultipleUploads = (files: File[]) => {
-    const newTasks: UploadTask[] = files.map(file => ({
+    const newTasks: UploadTask[] = files.map((file) => ({
       id: Math.random().toString(36).substring(7),
       file,
       progress: 0,
-      status: 'uploading'
+      status: "uploading",
     }));
-    
-    setUploadTasks(prev => [...prev, ...newTasks]);
 
-    newTasks.forEach(task => {
+    setUploadTasks((prev) => [...prev, ...newTasks]);
+
+    newTasks.forEach((task) => {
       uploadSingleFile(task);
     });
-    
-    if (fileInputRef.current) fileInputRef.current.value = '';
+
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const uploadSingleFile = (task: UploadTask) => {
     const formData = new FormData();
-    formData.append('file', task.file);
-    formData.append('uploaderName', 'Web User');
+    formData.append("file", task.file);
+    formData.append("uploaderName", "Web User");
 
     const xhr = new XMLHttpRequest();
-    
-    xhr.upload.addEventListener('progress', (e) => {
+
+    xhr.upload.addEventListener("progress", (e) => {
       if (e.lengthComputable) {
         const percent = Math.round((e.loaded / e.total) * 100);
-        setUploadTasks(prev => prev.map(t => 
-          t.id === task.id ? { ...t, progress: percent } : t
-        ));
+        setUploadTasks((prev) =>
+          prev.map((t) => (t.id === task.id ? { ...t, progress: percent } : t)),
+        );
       }
     });
 
-    xhr.addEventListener('load', async () => {
+    xhr.addEventListener("load", async () => {
       if (xhr.status >= 200 && xhr.status < 300) {
-        setUploadTasks(prev => prev.map(t => 
-          t.id === task.id ? { ...t, status: 'success', progress: 100 } : t
-        ));
+        setUploadTasks((prev) =>
+          prev.map((t) =>
+            t.id === task.id ? { ...t, status: "success", progress: 100 } : t,
+          ),
+        );
         await fetchFiles();
-        
-        setTimeout(() => {
-          setUploadTasks(prev => prev.filter(t => t.id !== task.id));
-        }, 500);
       } else {
-        setUploadTasks(prev => prev.map(t => 
-          t.id === task.id ? { ...t, status: 'error' } : t
-        ));
+        setUploadTasks((prev) =>
+          prev.map((t) => (t.id === task.id ? { ...t, status: "error" } : t)),
+        );
         alert(`อัปโหลดไฟล์ ${task.file.name} ไม่สำเร็จ`);
       }
     });
 
-    xhr.addEventListener('error', () => {
-      setUploadTasks(prev => prev.map(t => 
-        t.id === task.id ? { ...t, status: 'error' } : t
-      ));
+    xhr.addEventListener("error", () => {
+      setUploadTasks((prev) =>
+        prev.map((t) => (t.id === task.id ? { ...t, status: "error" } : t)),
+      );
       alert(`อัปโหลดไฟล์ ${task.file.name} ไม่สำเร็จ กรุณาตรวจสอบการเชื่อมต่อ`);
     });
 
-    const uploadUrl = appConfig ? `${appConfig.apiUrl}/files/upload` : '/api/files/upload';
-    xhr.open('POST', uploadUrl);
-    
+    const uploadUrl = appConfig
+      ? `${appConfig.apiUrl}/files/upload`
+      : "/api/files/upload";
+    xhr.open("POST", uploadUrl);
+
     if (appConfig?.accessKey) {
-      xhr.setRequestHeader('x-access-key', appConfig.accessKey);
+      xhr.setRequestHeader("x-access-key", appConfig.accessKey);
     }
-    
+
     xhr.send(formData);
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this file?')) return;
-    
+    if (!confirm("Are you sure you want to delete this file?")) return;
+
     try {
-      const res = await fetch(`/api/files/${id}`, { method: 'DELETE' });
+      const res = await fetch(`/api/files/${id}`, { method: "DELETE" });
       if (res.ok) {
-        setFiles(files.filter(f => f.id !== id));
+        setFiles(files.filter((f) => f.id !== id));
         if (selectedFiles.has(id)) {
           const newSelected = new Set(selectedFiles);
           newSelected.delete(id);
@@ -206,19 +295,24 @@ export default function Dashboard() {
 
   const handleBulkDelete = async () => {
     if (selectedFiles.size === 0) return;
-    if (!confirm(`Are you sure you want to delete ${selectedFiles.size} items?`)) return;
-    
+    if (
+      !confirm(`Are you sure you want to delete ${selectedFiles.size} items?`)
+    )
+      return;
+
     try {
       // Run deletions in parallel
       await Promise.all(
-        Array.from(selectedFiles).map(id => fetch(`/api/files/${id}`, { method: 'DELETE' }))
+        Array.from(selectedFiles).map((id) =>
+          fetch(`/api/files/${id}`, { method: "DELETE" }),
+        ),
       );
-      
-      setFiles(files.filter(f => !selectedFiles.has(f.id)));
+
+      setFiles(files.filter((f) => !selectedFiles.has(f.id)));
       setSelectedFiles(new Set());
     } catch (error) {
       console.error(error);
-      alert('Error deleting some files');
+      alert("Error deleting some files");
     }
   };
 
@@ -236,31 +330,34 @@ export default function Dashboard() {
     if (selectedFiles.size === files.length) {
       setSelectedFiles(new Set());
     } else {
-      setSelectedFiles(new Set(files.map(f => f.id)));
+      setSelectedFiles(new Set(files.map((f) => f.id)));
     }
   };
 
-  const handleActionRequest = async (type: 'download' | 'preview', file: FileData) => {
+  const handleActionRequest = async (
+    type: "download" | "preview",
+    file: FileData,
+  ) => {
     try {
       const res = await fetch(`/api/files/${file.id}/request-access`, {
-        method: 'POST',
+        method: "POST",
       });
 
       if (res.ok) {
         const data = await res.json();
 
-        if (type === 'download') {
-          window.open(data.url, '_blank');
-        } else if (type === 'preview') {
+        if (type === "download") {
+          window.open(data.url, "_blank");
+        } else if (type === "preview") {
           setPreviewUrl(data.url);
           setPreviewModalOpen(true);
         }
       } else {
-        alert('Failed to get file access token');
+        alert("Failed to get file access token");
       }
     } catch (error) {
       console.error(error);
-      alert('Error requesting file access');
+      alert("Error requesting file access");
     }
   };
 
@@ -275,7 +372,7 @@ export default function Dashboard() {
             </div>
             <h1 className="text-xl font-bold tracking-tight">Keep Files</h1>
           </div>
-          <button 
+          <button
             onClick={handleLogout}
             className="text-gray-400 hover:text-white transition-colors flex items-center gap-2 text-sm font-medium bg-white/5 hover:bg-white/10 px-4 py-2 rounded-full border border-white/5"
           >
@@ -292,9 +389,11 @@ export default function Dashboard() {
           animate={{ opacity: 1, y: 0 }}
           className="mb-12"
         >
-          <div 
+          <div
             className={`relative group rounded-3xl border-2 border-dashed transition-all duration-300 ${
-              dragActive ? 'border-indigo-500 bg-indigo-500/10' : 'border-white/10 bg-white/5 hover:bg-white/10 hover:border-white/20'
+              dragActive
+                ? "border-indigo-500 bg-indigo-500/10"
+                : "border-white/10 bg-white/5 hover:bg-white/10 hover:border-white/20"
             }`}
             onDragEnter={handleDrag}
             onDragLeave={handleDrag}
@@ -309,8 +408,12 @@ export default function Dashboard() {
               onChange={handleChange}
             />
             <div className="py-20 px-10 text-center flex flex-col items-center justify-center">
-              <div className={`w-20 h-20 rounded-full mb-6 flex items-center justify-center transition-transform duration-300 ${dragActive ? 'scale-110 bg-indigo-500/20' : 'bg-white/5 group-hover:scale-110'}`}>
-                <CloudUpload className={`w-10 h-10 ${dragActive ? 'text-indigo-400' : 'text-gray-400'}`} />
+              <div
+                className={`w-20 h-20 rounded-full mb-6 flex items-center justify-center transition-transform duration-300 ${dragActive ? "scale-110 bg-indigo-500/20" : "bg-white/5 group-hover:scale-110"}`}
+              >
+                <CloudUpload
+                  className={`w-10 h-10 ${dragActive ? "text-indigo-400" : "text-gray-400"}`}
+                />
               </div>
               <h3 className="text-2xl font-semibold mb-2">
                 Drag & Drop your files here
@@ -324,37 +427,54 @@ export default function Dashboard() {
 
         {/* Upload Progress Area */}
         {uploadTasks.length > 0 && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             className="mb-12 flex flex-col gap-3"
           >
-            <h3 className="text-lg font-semibold mb-4 text-white/80">Uploading Files ({uploadTasks.filter(t => t.status === 'uploading').length} remaining)</h3>
+            <h3 className="text-lg font-semibold mb-4 text-white/80">
+              Uploading Files (
+              {uploadTasks.filter((t) => t.status === "uploading").length}{" "}
+              remaining)
+            </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {uploadTasks.map(task => (
-                <div key={task.id} className="bg-white/5 border border-white/10 rounded-2xl p-4 shadow-xl">
+              {uploadTasks.map((task) => (
+                <div
+                  key={task.id}
+                  className="bg-white/5 border border-white/10 rounded-2xl p-4 shadow-xl"
+                >
                   <div className="flex justify-between items-center mb-3">
                     <div className="flex items-center gap-3 truncate pr-4">
-                      <div className={`p-2 rounded-lg ${task.status === 'error' ? 'bg-red-500/10' : task.status === 'success' ? 'bg-green-500/10' : 'bg-indigo-500/10'}`}>
-                        {task.status === 'uploading' ? (
+                      <div
+                        className={`p-2 rounded-lg ${task.status === "error" ? "bg-red-500/10" : task.status === "success" ? "bg-green-500/10" : "bg-indigo-500/10"}`}
+                      >
+                        {task.status === "uploading" ? (
                           <Loader2 className="w-4 h-4 text-indigo-400 animate-spin shrink-0" />
-                        ) : task.status === 'success' ? (
+                        ) : task.status === "success" ? (
                           <CloudUpload className="w-4 h-4 text-green-400 shrink-0" />
                         ) : (
                           <FileIcon className="w-4 h-4 text-red-400 shrink-0" />
                         )}
                       </div>
-                      <span className="text-sm font-medium truncate text-gray-200">{task.file.name}</span>
+                      <span className="text-sm font-medium truncate text-gray-200">
+                        {task.file.name}
+                      </span>
                     </div>
-                    <span className={`text-xs font-semibold shrink-0 ${task.status === 'success' ? 'text-green-400' : task.status === 'error' ? 'text-red-400' : 'text-indigo-400'}`}>
-                      {task.status === 'success' ? 'Done' : task.status === 'error' ? 'Failed' : `${task.progress}%`}
+                    <span
+                      className={`text-xs font-semibold shrink-0 ${task.status === "success" ? "text-green-400" : task.status === "error" ? "text-red-400" : "text-indigo-400"}`}
+                    >
+                      {task.status === "success"
+                        ? "Done"
+                        : task.status === "error"
+                          ? "Failed"
+                          : `${task.progress}%`}
                     </span>
                   </div>
                   <div className="w-full bg-black/50 rounded-full h-1.5 overflow-hidden">
-                    <motion.div 
+                    <motion.div
                       initial={{ width: 0 }}
                       animate={{ width: `${task.progress}%` }}
-                      className={`h-full rounded-full transition-all duration-300 ${task.status === 'error' ? 'bg-red-500' : task.status === 'success' ? 'bg-green-500' : 'bg-indigo-500'}`}
+                      className={`h-full rounded-full transition-all duration-300 ${task.status === "error" ? "bg-red-500" : task.status === "success" ? "bg-green-500" : "bg-indigo-500"}`}
                     />
                   </div>
                 </div>
@@ -373,7 +493,7 @@ export default function Dashboard() {
                   {files.length}
                 </span>
               </h2>
-              
+
               {files.length > 0 && (
                 <div className="flex items-center gap-3 ml-4 pl-4 border-l border-white/10">
                   <button
@@ -387,7 +507,7 @@ export default function Dashboard() {
                     )}
                     Select All
                   </button>
-                  
+
                   {selectedFiles.size > 0 && (
                     <motion.button
                       initial={{ opacity: 0, scale: 0.9 }}
@@ -403,19 +523,66 @@ export default function Dashboard() {
               )}
             </div>
 
-            <div className="flex bg-white/5 p-1 rounded-xl border border-white/10">
-              <button 
-                onClick={() => setViewMode('grid')}
-                className={`p-2 rounded-lg transition-colors ${viewMode === 'grid' ? 'bg-white/10 text-white shadow-sm' : 'text-gray-400 hover:text-white'}`}
-              >
-                <LayoutGrid className="w-4 h-4" />
-              </button>
-              <button 
-                onClick={() => setViewMode('list')}
-                className={`p-2 rounded-lg transition-colors ${viewMode === 'list' ? 'bg-white/10 text-white shadow-sm' : 'text-gray-400 hover:text-white'}`}
-              >
-                <List className="w-4 h-4" />
-              </button>
+            <div className="flex items-center gap-3">
+              {/* Sort Dropdown */}
+              <div className="relative">
+                <button
+                  onClick={() => setSortDropdownOpen(!sortDropdownOpen)}
+                  className="flex items-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300 text-sm rounded-xl px-4 py-2 transition-colors focus:outline-none"
+                >
+                  {SORT_LABELS[sortOption]}
+                  <ChevronDown className="w-4 h-4 opacity-50" />
+                </button>
+
+                <AnimatePresence>
+                  {sortDropdownOpen && (
+                    <>
+                      <div
+                        className="fixed inset-0 z-30"
+                        onClick={() => setSortDropdownOpen(false)}
+                      />
+                      <motion.div
+                        initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                        transition={{ duration: 0.15 }}
+                        className="absolute right-0 mt-2 w-48 bg-[#111] border border-white/10 rounded-xl shadow-2xl z-40 overflow-hidden"
+                      >
+                        {(
+                          Object.entries(SORT_LABELS) as [SortOption, string][]
+                        ).map(([val, label]) => (
+                          <button
+                            key={val}
+                            onClick={() => {
+                              setSortOption(val);
+                              setSortDropdownOpen(false);
+                            }}
+                            className={`w-full text-left px-4 py-2.5 text-sm transition-colors hover:bg-white/10 ${sortOption === val ? "text-indigo-400 bg-indigo-500/10" : "text-gray-300"}`}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </motion.div>
+                    </>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              {/* View Toggle */}
+              <div className="flex bg-white/5 p-1 rounded-xl border border-white/10">
+                <button
+                  onClick={() => setViewMode("grid")}
+                  className={`p-2 rounded-lg transition-colors ${viewMode === "grid" ? "bg-white/10 text-white shadow-sm" : "text-gray-400 hover:text-white"}`}
+                >
+                  <LayoutGrid className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => setViewMode("list")}
+                  className={`p-2 rounded-lg transition-colors ${viewMode === "list" ? "bg-white/10 text-white shadow-sm" : "text-gray-400 hover:text-white"}`}
+                >
+                  <List className="w-4 h-4" />
+                </button>
+              </div>
             </div>
           </div>
 
@@ -424,10 +591,15 @@ export default function Dashboard() {
               <div className="w-16 h-16 rounded-full bg-red-500/20 flex items-center justify-center mx-auto mb-4">
                 <Trash2 className="w-8 h-8 text-red-400" />
               </div>
-              <h3 className="text-xl font-semibold text-red-400 mb-2">Connection Error</h3>
+              <h3 className="text-xl font-semibold text-red-400 mb-2">
+                Connection Error
+              </h3>
               <p className="text-gray-400 mb-6 max-w-md mx-auto">{error}</p>
-              <button 
-                onClick={() => { setLoading(true); fetchFiles(); }}
+              <button
+                onClick={() => {
+                  setLoading(true);
+                  fetchFiles();
+                }}
                 className="px-6 py-3 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-xl transition-colors font-medium"
               >
                 Try Again
@@ -443,22 +615,36 @@ export default function Dashboard() {
               <p className="text-xl text-gray-400">No files uploaded yet.</p>
             </div>
           ) : (
-            <div className={viewMode === 'grid' ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6" : "flex flex-col gap-4"}>
+            <div
+              className={
+                viewMode === "grid"
+                  ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+                  : "flex flex-col gap-4"
+              }
+            >
               <AnimatePresence>
-                {files.map((file) => (
+                {sortedFiles.map((file) => (
                   <motion.div
                     key={file.id}
-                    layout
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.9 }}
-                    className={viewMode === 'grid' 
-                      ? `relative group bg-white/5 border ${selectedFiles.has(file.id) ? 'border-indigo-500 bg-indigo-500/5' : 'border-white/10 hover:border-white/20 hover:bg-white/[0.07]'} rounded-2xl p-5 flex flex-col transition-all duration-300`
-                      : `group bg-white/5 border ${selectedFiles.has(file.id) ? 'border-indigo-500 bg-indigo-500/5' : 'border-white/10 hover:border-white/20 hover:bg-white/[0.07]'} rounded-2xl p-4 flex items-center gap-4 transition-all duration-300`}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.15 }}
+                    className={
+                      viewMode === "grid"
+                        ? `relative group bg-white/5 border ${selectedFiles.has(file.id) ? "border-indigo-500 bg-indigo-500/5" : "border-white/10 hover:border-white/20 hover:bg-white/[0.07]"} rounded-2xl p-5 flex flex-col transition-all duration-300`
+                        : `group bg-white/5 border ${selectedFiles.has(file.id) ? "border-indigo-500 bg-indigo-500/5" : "border-white/10 hover:border-white/20 hover:bg-white/[0.07]"} rounded-2xl p-4 flex items-center gap-4 transition-all duration-300`
+                    }
                   >
-                    <div className={viewMode === 'grid' ? "flex items-start justify-between mb-4" : "flex items-center gap-4 flex-1"}>
+                    <div
+                      className={
+                        viewMode === "grid"
+                          ? "flex items-start justify-between mb-4"
+                          : "flex items-center gap-4 flex-1"
+                      }
+                    >
                       <div className="flex items-center gap-3 shrink-0">
-                        <button 
+                        <button
                           onClick={() => toggleSelection(file.id)}
                           className="text-gray-400 hover:text-white transition-colors"
                         >
@@ -472,21 +658,34 @@ export default function Dashboard() {
                           {getFileIcon(file.mimeType)}
                         </div>
                       </div>
-                      
-                      <div className={viewMode === 'grid' ? "hidden" : "flex-1 min-w-0"}>
-                        <h4 className="font-medium text-gray-200 truncate mb-1" title={file.originalName}>
+
+                      <div
+                        className={
+                          viewMode === "grid" ? "hidden" : "flex-1 min-w-0"
+                        }
+                      >
+                        <h4
+                          className="font-medium text-gray-200 truncate mb-1"
+                          title={file.originalName}
+                        >
                           {file.originalName}
                         </h4>
                         <div className="flex items-center gap-4 text-xs text-gray-500">
                           <span>{formatBytes(file.size)}</span>
-                          <span>{formatDistanceToNow(new Date(file.uploadDate), { addSuffix: true })}</span>
+                          <span>
+                            {formatDistanceToNow(new Date(file.uploadDate), {
+                              addSuffix: true,
+                            })}
+                          </span>
                         </div>
                       </div>
 
-                      <div className={`flex gap-2 ${viewMode === 'grid' ? 'opacity-0 group-hover:opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity`}>
-                        {file.mimeType.startsWith('image/') && (
+                      <div
+                        className={`flex gap-2 ${viewMode === "grid" ? "opacity-0 group-hover:opacity-100" : "opacity-0 group-hover:opacity-100"} transition-opacity`}
+                      >
+                        {file.mimeType.startsWith("image/") && (
                           <button
-                            onClick={() => handleActionRequest('preview', file)}
+                            onClick={() => handleActionRequest("preview", file)}
                             className="p-2 hover:bg-indigo-500/20 rounded-lg text-gray-400 hover:text-indigo-400 transition-colors"
                             title="Preview Image"
                           >
@@ -494,7 +693,7 @@ export default function Dashboard() {
                           </button>
                         )}
                         <button
-                          onClick={() => handleActionRequest('download', file)}
+                          onClick={() => handleActionRequest("download", file)}
                           className="p-2 hover:bg-white/10 rounded-lg text-gray-400 hover:text-white transition-colors"
                           title="Download"
                         >
@@ -509,19 +708,24 @@ export default function Dashboard() {
                         </button>
                       </div>
                     </div>
-                    
-                    {viewMode === 'grid' && (
+
+                    {viewMode === "grid" && (
                       <>
-                        <h4 className="font-medium text-gray-200 truncate mb-1" title={file.originalName}>
+                        <h4
+                          className="font-medium text-gray-200 truncate mb-1"
+                          title={file.originalName}
+                        >
                           {file.originalName}
                         </h4>
-                        
+
                         <div className="flex justify-between items-center mt-auto pt-4 border-t border-white/5">
                           <span className="text-xs text-gray-500">
                             {formatBytes(file.size)}
                           </span>
                           <span className="text-xs text-gray-500">
-                            {formatDistanceToNow(new Date(file.uploadDate), { addSuffix: true })}
+                            {formatDistanceToNow(new Date(file.uploadDate), {
+                              addSuffix: true,
+                            })}
                           </span>
                         </div>
                       </>
@@ -544,7 +748,7 @@ export default function Dashboard() {
             className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-xl"
             onClick={() => setPreviewModalOpen(false)}
           >
-            <button 
+            <button
               onClick={() => setPreviewModalOpen(false)}
               className="absolute top-6 right-6 p-3 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors z-50"
             >
@@ -557,9 +761,9 @@ export default function Dashboard() {
               className="relative max-w-5xl max-h-[90vh] w-full h-full flex items-center justify-center"
               onClick={(e) => e.stopPropagation()}
             >
-              <img 
-                src={previewUrl} 
-                alt="Preview" 
+              <img
+                src={previewUrl}
+                alt="Preview"
                 className="max-w-full max-h-full object-contain rounded-lg"
               />
             </motion.div>
