@@ -1,15 +1,11 @@
 import {
   Square,
-  Eye,
-  Download,
-  Trash2,
   SquareCheck,
-  Pencil,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { FileData } from "../../types";
 import { formatBytes, getFileIcon } from "../../utils";
-import { Button } from "@heroui/react";
+import { FileActionMenu } from "./FileActionMenu";
 
 type FileCardProps = {
   file: FileData;
@@ -39,51 +35,6 @@ export function FileCard({
     }
   };
 
-  const ActionButtons = ({ className = "" }: { className?: string }) => (
-    <div
-      className={`flex items-center gap-0.5 md:gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity ${className}`}
-    >
-      {file.mimeType.startsWith("image/") && (
-        <Button
-          isIconOnly
-          variant="ghost"
-          onPress={() => onActionRequest("preview", file)}
-          className="text-gray-400 hover:text-white border-0 w-7 h-7 min-w-7 md:w-8 md:h-8 md:min-w-8"
-          aria-label="Preview Image"
-        >
-          <Eye className="w-3.5 h-3.5 md:w-4 md:h-4" />
-        </Button>
-      )}
-      <Button
-        isIconOnly
-        variant="ghost"
-        onPress={() => onActionRequest("edit", file)}
-        className="text-gray-400 hover:text-white border-0 w-7 h-7 min-w-7 md:w-8 md:h-8 md:min-w-8"
-        aria-label="Edit"
-      >
-        <Pencil className="w-3.5 h-3.5 md:w-4 md:h-4" />
-      </Button>
-      <Button
-        isIconOnly
-        variant="ghost"
-        onPress={() => onActionRequest("download", file)}
-        className="text-gray-400 hover:text-white border-0 w-7 h-7 min-w-7 md:w-8 md:h-8 md:min-w-8"
-        aria-label="Download"
-      >
-        <Download className="w-3.5 h-3.5 md:w-4 md:h-4" />
-      </Button>
-      <Button
-        isIconOnly
-        variant="ghost"
-        onPress={() => onDelete(file.id)}
-        className="text-gray-400 hover:text-red-400 border-0 w-7 h-7 min-w-7 md:w-8 md:h-8 md:min-w-8"
-        aria-label="Delete"
-      >
-        <Trash2 className="w-3.5 h-3.5 md:w-4 md:h-4" />
-      </Button>
-    </div>
-  );
-
   if (viewMode === "list") {
     return (
       <div
@@ -107,7 +58,7 @@ export function FileCard({
             <Square className="w-4 h-4 md:w-5 md:h-5" />
           )}
         </div>
-
+        
         <div className="text-gray-500 shrink-0 flex items-center justify-center w-6 h-6 md:w-8 md:h-8">
           {getFileIcon(file.mimeType)}
         </div>
@@ -124,24 +75,18 @@ export function FileCard({
               {formatBytes(file.size)} • {file.uploaderName || "anonymous"}
             </p>
           </div>
-
-          <div className="hidden md:flex shrink-0 w-100 items-center gap-4 text-xs text-gray-500">
-            <span className="flex-1 truncate">
-              {file.uploaderName || "anonymous"}
-            </span>
-            <span className="w-20 font-mono text-right">
-              {formatBytes(file.size)}
-            </span>
+          
+          <div className="hidden md:flex shrink-0 w-[400px] items-center gap-4 text-xs text-gray-500">
+            <span className="flex-1 truncate">{file.uploaderName || "anonymous"}</span>
+            <span className="w-20 font-mono text-right">{formatBytes(file.size)}</span>
             <span className="w-32 font-mono text-right text-nowrap">
-              {formatDistanceToNow(new Date(file.uploadDate), {
-                addSuffix: true,
-              })}
+              {formatDistanceToNow(new Date(file.uploadDate), { addSuffix: true })}
             </span>
           </div>
         </div>
 
-        <div className="flex justify-end shrink-0 pl-1">
-          <ActionButtons />
+        <div className="flex justify-end shrink-0 pl-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+          <FileActionMenu file={file} onActionRequest={onActionRequest} onDelete={onDelete} />
         </div>
       </div>
     );
@@ -172,8 +117,8 @@ export function FileCard({
         </div>
       </div>
 
-      <div className="absolute top-2 right-2 z-10">
-        <ActionButtons className="bg-[#111111]/80 backdrop-blur-sm rounded-md border border-[#222222]" />
+      <div className="absolute top-2 right-2 z-10 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+        <FileActionMenu file={file} onActionRequest={onActionRequest} onDelete={onDelete} className="bg-[#111111]/80 backdrop-blur-sm rounded-md border border-[#222222]" />
       </div>
 
       <div className="h-36 bg-[#0a0a0a] border-b border-[#222222] flex items-center justify-center relative">
