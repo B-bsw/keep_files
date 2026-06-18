@@ -236,7 +236,7 @@ export default function Dashboard() {
 
   const handleBulkDelete = () => {
     if (selectedFiles.size === 0) return;
-    
+
     setConfirmAction({
       title: "Delete Files",
       description: `Are you sure you want to delete ${selectedFiles.size} items? This action cannot be undone.`,
@@ -332,7 +332,7 @@ export default function Dashboard() {
     <div className="min-h-screen bg-[#050505] text-white">
       <Header onLogout={handleLogout} />
 
-      <main className="max-w-7xl mx-auto px-6 py-12">
+      <main className="max-w-4xl mx-auto px-6 py-12">
         <UploadArea
           dragActive={dragActive}
           onDragEnter={handleDrag}
