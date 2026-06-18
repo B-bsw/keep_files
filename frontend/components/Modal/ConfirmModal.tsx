@@ -23,16 +23,16 @@ export function ConfirmModal({
     <Modal isOpen={isOpen} onOpenChange={onOpenChange}>
       <Modal.Backdrop>
         <Modal.Container>
-          <Modal.Dialog className="border border-[#222222] bg-[#050505] rounded-lg">
-            <Modal.CloseTrigger className="text-gray-400 hover:text-white" />
+          <Modal.Dialog className="border border-gray-200 dark:border-[#222222] bg-[#F5FEFD] dark:bg-[#050505] rounded-lg">
+            <Modal.CloseTrigger className="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white" />
             <Modal.Header>
-              <Modal.Heading className="text-white">{title}</Modal.Heading>
+              <Modal.Heading className="text-gray-900 dark:text-white">{title}</Modal.Heading>
             </Modal.Header>
             <Modal.Body>
-              <p className="text-gray-300">{description}</p>
+              <p className="text-gray-600 dark:text-gray-300">{description}</p>
             </Modal.Body>
             <Modal.Footer>
-              <Button slot="close" className="text-white hover:bg-[#151515] hover:border-[#333333] border border-[#222222] bg-[#111111] rounded-lg">
+              <Button slot="close" className="text-gray-700 dark:text-white hover:bg-gray-100 dark:hover:bg-[#151515] hover:border-gray-300 dark:hover:border-[#333333] border border-gray-200 dark:border-[#222222] bg-[#F5FEFD] dark:bg-[#111111] rounded-lg">
                 {cancelText}
               </Button>
               <Button
@@ -40,7 +40,7 @@ export function ConfirmModal({
                   onConfirm();
                   onOpenChange(false);
                 }}
-                className="bg-white text-black hover:bg-white/90 rounded-lg"
+                className="bg-gray-900 dark:bg-white text-white dark:text-black hover:bg-gray-800 dark:hover:bg-white/90 rounded-lg"
               >
                 {confirmText}
               </Button>
