@@ -23,14 +23,14 @@ export function UploadProgressList({ tasks }: { tasks: UploadTask[] }) {
               <div className="flex justify-between items-center mb-3">
                 <div className="flex items-center gap-3 truncate pr-4">
                   <div
-                    className={`p-2 rounded-lg ${task.status === "error" ? "bg-red-500/10" : task.status === "success" ? "bg-success/10" : "bg-primary/10"}`}
+                    className="p-2 rounded-lg bg-white/10"
                   >
                     {task.status === "uploading" ? (
-                      <Loader2 className="w-4 h-4 text-primary animate-spin shrink-0" />
+                      <Loader2 className="w-4 h-4 text-white animate-spin shrink-0" />
                     ) : task.status === "success" ? (
-                      <CloudUpload className="w-4 h-4 text-success shrink-0" />
+                      <CloudUpload className="w-4 h-4 text-white shrink-0" />
                     ) : (
-                      <FileIcon className="w-4 h-4 text-danger shrink-0" />
+                      <FileIcon className="w-4 h-4 text-white shrink-0" />
                     )}
                   </div>
                   <span className="text-sm font-medium truncate text-gray-200">
@@ -38,7 +38,7 @@ export function UploadProgressList({ tasks }: { tasks: UploadTask[] }) {
                   </span>
                 </div>
                 <span
-                  className={`text-xs font-semibold shrink-0 ${task.status === "success" ? "text-success" : task.status === "error" ? "text-danger" : "text-primary"}`}
+                  className="text-xs font-semibold shrink-0 text-white"
                 >
                   {task.status === "success"
                     ? "Done"
@@ -50,11 +50,10 @@ export function UploadProgressList({ tasks }: { tasks: UploadTask[] }) {
               <ProgressBar 
                 aria-label="Upload progress"
                 value={task.progress}
-                color={task.status === "error" ? "danger" : task.status === "success" ? "success" : "accent"}
                 size="sm"
               >
                 <ProgressBar.Track className="bg-black/50">
-                  <ProgressBar.Fill />
+                  <ProgressBar.Fill className="bg-white" />
                 </ProgressBar.Track>
               </ProgressBar>
             </Card.Content>

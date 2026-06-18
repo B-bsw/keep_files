@@ -35,7 +35,7 @@ export function UploadArea({
       <div
         className={`relative group rounded-3xl border-2 border-dashed transition-all duration-300 ${
           dragActive
-            ? "border-indigo-500 bg-indigo-500/10"
+            ? "border-white bg-white/10"
             : "border-white/10 bg-white/5 hover:bg-white/10 hover:border-white/20"
         }`}
         onDragEnter={onDragEnter}
@@ -52,10 +52,10 @@ export function UploadArea({
         />
         <div className="py-20 px-10 text-center flex flex-col items-center justify-center">
           <div
-            className={`w-20 h-20 rounded-full mb-6 flex items-center justify-center transition-transform duration-300 ${dragActive ? "scale-110 bg-indigo-500/20" : "bg-white/5 group-hover:scale-110"}`}
+            className={`w-20 h-20 rounded-full mb-6 flex items-center justify-center transition-transform duration-300 ${dragActive ? "scale-110 bg-white/20" : "bg-white/5 group-hover:scale-110"}`}
           >
             <CloudUpload
-              className={`w-10 h-10 ${dragActive ? "text-indigo-400" : "text-gray-400"}`}
+              className={`w-10 h-10 ${dragActive ? "text-white" : "text-gray-400"}`}
             />
           </div>
           <h3 className="text-2xl font-semibold mb-2">

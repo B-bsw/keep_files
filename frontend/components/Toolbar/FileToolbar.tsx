@@ -60,7 +60,7 @@ export function FileToolbar({
               className="text-gray-400 hover:text-white"
             >
               {isAllSelected ? (
-                <SquareCheck className="w-5 h-5 text-indigo-400" />
+                <SquareCheck className="w-5 h-5 text-white" />
               ) : (
                 <Square className="w-5 h-5" />
               )}
@@ -72,7 +72,7 @@ export function FileToolbar({
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
               >
-                <Button onPress={onBulkDelete} variant="danger">
+                <Button onPress={onBulkDelete} variant="secondary" className="bg-white text-black hover:bg-white/90">
                   <Trash2 className="w-4 h-4" />
                   Delete ({selectedCount})
                 </Button>
@@ -104,7 +104,7 @@ export function FileToolbar({
                 ([val, label]) => (
                   <Dropdown.Item key={val} id={val} textValue={label}>
                     <Label
-                      className={sortOption === val ? "text-indigo-400" : ""}
+                      className={sortOption === val ? "text-white" : ""}
                     >
                       {label}
                     </Label>

@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-06-18T15:44:00Z",
+  "title": "Design System: Keep Files",
+  "extensions": {
+    "colorMeta": {
+      "neutral-bg": { "role": "neutral", "displayName": "Vault Black", "canonical": "#050505" },
+      "neutral-surface": { "role": "neutral", "displayName": "Surface Dark", "canonical": "#111111" },
+      "neutral-text": { "role": "neutral", "displayName": "Pure White", "canonical": "#ffffff" }
+    },
+    "typographyMeta": {
+      "body": { "displayName": "Body", "purpose": "Standard prose and file names." }
+    }
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Tactile and confident white button for main actions.",
+      "html": "<button class=\"ds-btn-primary\">UPLOAD FILE</button>",
+      "css": ".ds-btn-primary { background: #ffffff; color: #050505; padding: 8px 16px; border-radius: 9999px; font-family: sans-serif; font-weight: 500; font-size: 0.875rem; border: none; cursor: pointer; transition: opacity 0.2s; } .ds-btn-primary:hover { opacity: 0.9; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Digital Vault",
+    "overview": "Keep Files is a secure, dark, indestructible vault for personal files. The interface relies on strict minimalism and a monochromatic black-and-white palette. It explicitly rejects overly complex, cluttered enterprise SaaS layouts and generic, brightly colored templates. Every element is fast and purposeful.",
+    "keyCharacteristics": [
+      "Uncompromising legibility through high contrast.",
+      "Utilitarian, fast, and focused.",
+      "Tonal layering instead of shadows."
+    ],
+    "rules": [
+      { "name": "The Monochromatic Rule", "body": "The interface is strictly black and white. Avoid gradients or vibrant accents; use brightness and contrast to draw attention.", "section": "colors" },
+      { "name": "The Functional Type Rule", "body": "Typography must guide the eye without confusion. Never use lightweight fonts for body copy.", "section": "typography" },
+      { "name": "The Flat-By-Default Rule", "body": "Surfaces are flat. Shadows are explicitly forbidden. Depth is achieved purely by shifting the background color from #050505 to slightly lighter grays.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do use strict black and white for all core UI elements.",
+      "Do rely on tonal layering (e.g. from #050505 to #111111) to establish depth.",
+      "Do prioritize uncompromising legibility with high contrast."
+    ],
+    "donts": [
+      "Don't use gradients, neon colors, or vibrant accents.",
+      "Don't use shadows or drop-shadows on components.",
+      "Don't create an overly complex or cluttered enterprise SaaS layout.",
+      "Don't use gratuitous animations; respect reduced-motion."
+    ]
+  }
+}

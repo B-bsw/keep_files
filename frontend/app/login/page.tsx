@@ -38,7 +38,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#0a0a0a] bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(120,119,198,0.3),rgba(255,255,255,0))]">
+    <div className="min-h-screen flex items-center justify-center bg-[#050505]">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -48,8 +48,8 @@ export default function LoginPage() {
         <Card className="bg-white/5 backdrop-blur-xl border border-white/10 shadow-2xl">
           <Card.Content className="p-8">
             <div className="flex justify-center mb-8">
-              <div className="w-16 h-16 rounded-full bg-indigo-500/20 flex items-center justify-center border border-indigo-500/30">
-                <Lock className="w-8 h-8 text-indigo-400" />
+              <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center border border-white/10">
+                <Lock className="w-8 h-8 text-white" />
               </div>
             </div>
             
@@ -71,7 +71,7 @@ export default function LoginPage() {
                   <Input
                     type="password"
                     placeholder="Enter Access Key"
-                    className="w-full bg-black/50 border-white/10 hover:border-white/20 focus:border-indigo-500 rounded-lg p-3 text-lg"
+                    className="w-full bg-black/50 border-white/10 hover:border-white/20 focus:border-white rounded-lg p-3 text-lg"
                   />
                   {error && <FieldError>{error}</FieldError>}
                 </TextField>

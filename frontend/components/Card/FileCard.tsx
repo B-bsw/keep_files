@@ -31,7 +31,7 @@ export function FileCard({
             onActionRequest("download", file);
           }
         }}
-        className={`group bg-white/5 border cursor-pointer transition-colors ${isSelected ? "border-indigo-500 bg-indigo-500/5" : "border-white/10 hover:border-white/20 hover:bg-white/[0.07]"} w-full`}
+        className={`group bg-white/5 border cursor-pointer transition-colors ${isSelected ? "border-white bg-white/10" : "border-white/10 hover:border-white/20 hover:bg-white/[0.07]"} w-full`}
       >
         <Card.Content className="p-4 flex flex-row items-center gap-4 overflow-hidden">
           <div
@@ -39,10 +39,10 @@ export function FileCard({
               e.stopPropagation();
               onToggleSelection(file.id);
             }}
-            className="cursor-pointer text-gray-400 hover:text-indigo-400 transition-colors"
+            className="cursor-pointer text-gray-400 hover:text-white transition-colors"
           >
             {isSelected ? (
-              <SquareCheck className="w-5 h-5 text-indigo-500" />
+              <SquareCheck className="w-5 h-5 text-white" />
             ) : (
               <Square className="w-5 h-5" />
             )}
@@ -74,7 +74,7 @@ export function FileCard({
                 isIconOnly
                 variant="ghost"
                 onPress={() => onActionRequest("preview", file)}
-                className="text-gray-400 hover:text-indigo-400 border-0"
+                className="text-gray-400 hover:text-white border-0"
                 aria-label="Preview Image"
               >
                 <Eye className="w-4 h-4" />
@@ -93,7 +93,7 @@ export function FileCard({
               isIconOnly
               variant="ghost"
               onPress={() => onDelete(file.id)}
-              className="text-gray-400 hover:text-red-400 border-0"
+              className="text-gray-400 hover:text-white border-0"
               aria-label="Delete"
             >
               <Trash2 className="w-4 h-4" />
@@ -113,7 +113,7 @@ export function FileCard({
           onActionRequest("download", file);
         }
       }}
-      className={`group bg-white/5 border cursor-pointer transition-colors ${isSelected ? "border-indigo-500 bg-indigo-500/5" : "border-white/10 hover:border-white/20 hover:bg-white/[0.07]"}`}
+      className={`group bg-white/5 border cursor-pointer transition-colors ${isSelected ? "border-white bg-white/10" : "border-white/10 hover:border-white/20 hover:bg-white/[0.07]"}`}
     >
       <Card.Content className="p-5 flex flex-col gap-4">
         <div className="flex items-start justify-between">
@@ -123,10 +123,10 @@ export function FileCard({
                 e.stopPropagation();
                 onToggleSelection(file.id);
               }}
-              className="cursor-pointer text-gray-400 hover:text-indigo-400 transition-colors"
+              className="cursor-pointer text-gray-400 hover:text-white transition-colors"
             >
               {isSelected ? (
-                <SquareCheck className="w-5 h-5 text-indigo-500" />
+                <SquareCheck className="w-5 h-5 text-white" />
               ) : (
                 <Square className="w-5 h-5" />
               )}
@@ -142,7 +142,7 @@ export function FileCard({
                 isIconOnly
                 variant="ghost"
                 onPress={() => onActionRequest("preview", file)}
-                className="text-gray-400 hover:text-indigo-400 border-0"
+                className="text-gray-400 hover:text-white border-0"
                 aria-label="Preview Image"
               >
                 <Eye className="w-4 h-4" />
@@ -161,7 +161,7 @@ export function FileCard({
               isIconOnly
               variant="ghost"
               onPress={() => onDelete(file.id)}
-              className="text-gray-400 hover:text-red-400 border-0"
+              className="text-gray-400 hover:text-white border-0"
               aria-label="Delete"
             >
               <Trash2 className="w-4 h-4" />
