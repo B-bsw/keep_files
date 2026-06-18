@@ -14,6 +14,13 @@ export type UploadTask = {
   status: "uploading" | "success" | "error";
 };
 
+export type DeleteTask = {
+  id: string;
+  fileName: string;
+  progress: number;
+  status: "deleting" | "success" | "error";
+};
+
 export type SortOption =
   | "date-desc"
   | "date-asc"

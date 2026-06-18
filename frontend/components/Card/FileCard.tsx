@@ -1,21 +1,18 @@
-import {
-  Square,
-  SquareCheck,
-} from "lucide-react";
+import { Square, SquareCheck } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { FileData } from "../../types";
 import { formatBytes } from "../../utils";
 import { FileActionMenu } from "./FileActionMenu";
 
 const getFileNameWithoutExtension = (fileName: string) => {
-  const lastDotIndex = fileName.lastIndexOf('.');
+  const lastDotIndex = fileName.lastIndexOf(".");
   if (lastDotIndex === -1) return fileName;
   return fileName.substring(0, lastDotIndex);
 };
 
 const getFileExtensionText = (fileName: string) => {
-  const lastDotIndex = fileName.lastIndexOf('.');
-  if (lastDotIndex === -1) return 'FILE';
+  const lastDotIndex = fileName.lastIndexOf(".");
+  if (lastDotIndex === -1) return "FILE";
   return fileName.substring(lastDotIndex + 1).toUpperCase();
 };
 
@@ -74,8 +71,6 @@ export function FileCard({
           )}
         </div>
 
-
-
         <div className="flex-1 min-w-0 flex flex-col md:flex-row md:items-center justify-between gap-1 md:gap-4">
           <div className="flex-1 min-w-0 flex flex-col">
             <h4
@@ -85,22 +80,37 @@ export function FileCard({
               {getFileNameWithoutExtension(file.originalName)}
             </h4>
             <p className="text-[11px] text-gray-500 truncate md:hidden mt-0.5">
-              <span className="uppercase font-medium text-gray-400">{getFileExtensionText(file.originalName)}</span> • {formatBytes(file.size)} • {file.uploaderName || "anonymous"}
+              <span className="uppercase font-medium text-gray-400">
+                {getFileExtensionText(file.originalName)}
+              </span>{" "}
+              • {formatBytes(file.size)} • {file.uploaderName || "anonymous"}
             </p>
           </div>
 
           <div className="hidden md:flex shrink-0 w-[400px] items-center gap-4 text-xs text-gray-500">
-            <span className="w-16 uppercase font-medium text-gray-400">{getFileExtensionText(file.originalName)}</span>
-            <span className="flex-1 truncate">{file.uploaderName || "anonymous"}</span>
-            <span className="w-20 font-mono text-right">{formatBytes(file.size)}</span>
+            <span className="w-16 uppercase font-medium text-gray-400">
+              {getFileExtensionText(file.originalName)}
+            </span>
+            <span className="flex-1 truncate">
+              {file.uploaderName || "anonymous"}
+            </span>
+            <span className="w-20 font-mono text-right">
+              {formatBytes(file.size)}
+            </span>
             <span className="w-32 font-mono text-right text-nowrap">
-              {formatDistanceToNow(new Date(file.uploadDate), { addSuffix: true })}
+              {formatDistanceToNow(new Date(file.uploadDate), {
+                addSuffix: true,
+              })}
             </span>
           </div>
         </div>
 
         <div className="flex justify-end shrink-0 pl-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-          <FileActionMenu file={file} onActionRequest={onActionRequest} onDelete={onDelete} />
+          <FileActionMenu
+            file={file}
+            onActionRequest={onActionRequest}
+            onDelete={onDelete}
+          />
         </div>
       </div>
     );
@@ -135,10 +145,13 @@ export function FileCard({
       </div>
 
       <div className="absolute top-2 right-2 z-10 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-        <FileActionMenu file={file} onActionRequest={onActionRequest} onDelete={onDelete} className="bg-[#111111]/80 backdrop-blur-sm rounded-md border border-[#222222]" />
+        <FileActionMenu
+          file={file}
+          onActionRequest={onActionRequest}
+          onDelete={onDelete}
+          className="bg-[#111111]/80 backdrop-blur-sm rounded-md border border-[#222222]"
+        />
       </div>
-
-
 
       <div className="p-4 pt-10 flex flex-col flex-1">
         <h4
@@ -148,7 +161,10 @@ export function FileCard({
           {getFileNameWithoutExtension(file.originalName)}
         </h4>
         <p className="text-xs text-gray-500 truncate mb-4">
-          <span className="uppercase font-medium text-gray-400">{getFileExtensionText(file.originalName)}</span> • {file.uploaderName || "anonymous"}
+          <span className="uppercase font-medium text-gray-400">
+            {getFileExtensionText(file.originalName)}
+          </span>{" "}
+          • {file.uploaderName || "anonymous"}
         </p>
 
         <div className="flex justify-between items-center w-full font-mono text-[10px] text-gray-600">

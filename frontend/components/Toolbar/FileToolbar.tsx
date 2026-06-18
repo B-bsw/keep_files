@@ -52,7 +52,7 @@ export function FileToolbar({
         </h2>
 
         {filesCount > 0 && (
-          <div className="flex flex-wrap items-center gap-2 sm:gap-3 ml-0 sm:ml-4 pl-0 sm:pl-4 sm:border-l border-[#222222] w-full sm:w-auto">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3 border-[#222222] w-full sm:w-auto">
             <Button
               onPress={onToggleSelectAll}
               variant="ghost"
