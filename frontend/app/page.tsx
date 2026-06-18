@@ -447,7 +447,7 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-[#050505] text-white">
+    <div className="min-h-screen bg-[#F5FEFD] dark:bg-[#050505] text-gray-900 dark:text-white transition-colors duration-300">
       <Header onLogout={handleLogout} />
 
       <main className="max-w-4xl mx-auto px-6 py-6">
@@ -479,11 +479,11 @@ export default function Dashboard() {
           />
 
           {viewMode === "list" && files.length > 0 && !loading && !error && (
-            <div className="hidden md:flex items-center gap-3 md:gap-4 px-3 md:px-4 py-2 mt-4 mb-2 text-[10px] font-semibold text-gray-500 uppercase tracking-widest border-b border-white/5 select-none">
+            <div className="hidden md:flex items-center gap-3 md:gap-4 px-3 md:px-4 py-2 mt-4 mb-2 text-[10px] font-semibold text-gray-500 uppercase tracking-widest border-b border-gray-200 dark:border-white/5 select-none">
               <div className="w-4 h-4 md:w-5 md:h-5 shrink-0" />
               <div className="flex-1 min-w-0 flex items-center justify-between gap-1 md:gap-4">
                 <div 
-                  className="flex-1 min-w-0 flex items-center gap-1 cursor-pointer hover:text-white transition-colors"
+                  className="flex-1 min-w-0 flex items-center gap-1 cursor-pointer hover:text-gray-900 dark:hover:text-white transition-colors"
                   onClick={() => setSortOption(sortOption === "name-desc" ? "name-asc" : "name-desc")}
                 >
                   Name
@@ -495,7 +495,7 @@ export default function Dashboard() {
                   <div className="w-16">Type</div>
                   <div className="flex-1">Uploader</div>
                   <div 
-                    className="w-20 flex justify-end items-center gap-1 cursor-pointer hover:text-white transition-colors"
+                    className="w-20 flex justify-end items-center gap-1 cursor-pointer hover:text-gray-900 dark:hover:text-white transition-colors"
                     onClick={() => setSortOption(sortOption === "size-desc" ? "size-asc" : "size-desc")}
                   >
                     Size
@@ -504,7 +504,7 @@ export default function Dashboard() {
                     )}
                   </div>
                   <div 
-                    className="w-32 flex justify-end items-center gap-1 cursor-pointer hover:text-white transition-colors"
+                    className="w-32 flex justify-end items-center gap-1 cursor-pointer hover:text-gray-900 dark:hover:text-white transition-colors"
                     onClick={() => setSortOption(sortOption === "date-desc" ? "date-asc" : "date-desc")}
                   >
                     Date
@@ -519,14 +519,14 @@ export default function Dashboard() {
           )}
 
           {error ? (
-            <div className="text-center py-20 border border-white/20 rounded-3xl bg-white/5">
-              <div className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center mx-auto mb-4">
-                <Trash2 className="w-8 h-8 text-white" />
+            <div className="text-center py-20 border border-gray-200 dark:border-white/20 rounded-3xl bg-[#F5FEFD] dark:bg-white/5">
+              <div className="w-16 h-16 rounded-full bg-red-50 dark:bg-white/10 flex items-center justify-center mx-auto mb-4">
+                <Trash2 className="w-8 h-8 text-red-500 dark:text-white" />
               </div>
-              <h3 className="text-xl font-semibold text-white mb-2">
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
                 Connection Error
               </h3>
-              <p className="text-gray-400 mb-6 max-w-md mx-auto">{error}</p>
+              <p className="text-gray-500 dark:text-gray-400 mb-6 max-w-md mx-auto">{error}</p>
               <Button
                 onPress={() => {
                   setLoading(true);
@@ -540,12 +540,12 @@ export default function Dashboard() {
             </div>
           ) : loading ? (
             <div className="flex justify-center py-20">
-              <Loader2 className="w-8 h-8 animate-spin text-white" />
+              <Loader2 className="w-8 h-8 animate-spin text-gray-400 dark:text-white" />
             </div>
           ) : files.length === 0 ? (
-            <div className="text-center py-20 border border-white/5 rounded-3xl bg-white/2">
-              <FileIcon className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-              <p className="text-xl text-gray-400">No files uploaded yet.</p>
+            <div className="text-center py-20 border border-dashed border-gray-200 dark:border-white/5 rounded-3xl bg-[#F5FEFD]/50 dark:bg-white/2">
+              <FileIcon className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
+              <p className="text-xl text-gray-500 dark:text-gray-400">No files uploaded yet.</p>
             </div>
           ) : (
             <div

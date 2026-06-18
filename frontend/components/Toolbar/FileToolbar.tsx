@@ -53,7 +53,7 @@ export function FileToolbar({
       <div className="flex flex-wrap items-center gap-4">
         <h2 className="text-xl sm:text-2xl font-semibold flex items-center gap-3">
           Your Files
-          <span className="text-sm font-normal text-gray-500 bg-[#111111] border border-[#222222] px-3 py-1 rounded-lg">
+          <span className="text-sm font-normal text-gray-600 dark:text-gray-500 bg-gray-100 dark:bg-[#111111] border border-gray-200 dark:border-[#222222] px-3 py-1 rounded-lg">
             {filesCount}
           </span>
         </h2>
@@ -63,10 +63,10 @@ export function FileToolbar({
             <Button
               onPress={onToggleSelectAll}
               variant="ghost"
-              className="text-gray-400 hover:text-white rounded-lg h-10 px-3"
+              className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white rounded-lg h-10 px-3"
             >
               {isAllSelected ? (
-                <SquareCheck className="w-5 h-5 text-white" />
+                <SquareCheck className="w-5 h-5 text-blue-600 dark:text-white" />
               ) : (
                 <Square className="w-5 h-5" />
               )}
@@ -89,7 +89,7 @@ export function FileToolbar({
       <div className="flex flex-wrap items-center gap-3 w-full md:w-auto mt-2 md:mt-0">
         <div className={viewMode === "list" ? "block md:hidden" : "block"}>
           <Dropdown>
-            <Button className="bg-[#111111] border border-[#222222] text-gray-300 hover:text-white hover:bg-[#151515] rounded-lg h-10 px-4 flex items-center gap-2">
+            <Button className="bg-[#F5FEFD] dark:bg-[#111111] border border-gray-200 dark:border-[#222222] text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-[#F5FEFD] dark:hover:bg-[#151515] rounded-lg h-10 px-4 flex items-center gap-2">
               <ArrowUpDown className="w-4 h-4 opacity-70" />
               <span>{SORT_LABELS[sortOption]}</span>
               <ChevronDown className="w-4 h-4 opacity-50" />
@@ -117,16 +117,16 @@ export function FileToolbar({
                         <div className="flex items-center justify-between w-full">
                           <div className="flex items-center gap-2">
                             <div className="w-4 flex justify-center">
-                              {sortOption === val && <Check className="w-4 h-4 text-white" />}
+                              {sortOption === val && <Check className="w-4 h-4 text-gray-900 dark:text-white" />}
                             </div>
-                            <Icon className={`w-4 h-4 ${sortOption === val ? "opacity-100 text-white" : "opacity-70 text-gray-400"}`} />
+                            <Icon className={`w-4 h-4 ${sortOption === val ? "opacity-100 text-gray-900 dark:text-white" : "opacity-70 text-gray-500 dark:text-gray-400"}`} />
                             <Label
-                              className={sortOption === val ? "text-white font-medium" : "text-gray-400"}
+                              className={sortOption === val ? "text-gray-900 dark:text-white font-medium" : "text-gray-600 dark:text-gray-400"}
                             >
                               {label}
                             </Label>
                           </div>
-                          <DirIcon className={`w-3 h-3 ${sortOption === val ? "opacity-100 text-white" : "opacity-50 text-gray-500"}`} />
+                          <DirIcon className={`w-3 h-3 ${sortOption === val ? "opacity-100 text-gray-900 dark:text-white" : "opacity-50 text-gray-400 dark:text-gray-500"}`} />
                         </div>
                       </Dropdown.Item>
                     );
@@ -141,10 +141,10 @@ export function FileToolbar({
           <Button
             isIconOnly
             onPress={() => setViewMode("grid")}
-            className={`border border-[#222222] h-10 w-10 ${
+            className={`border border-gray-200 dark:border-[#222222] h-10 w-10 ${
               viewMode === "grid"
-                ? "bg-[#222222] text-white"
-                : "bg-[#111111] text-gray-400 hover:bg-[#151515]"
+                ? "bg-gray-100 dark:bg-[#222222] text-gray-900 dark:text-white"
+                : "bg-[#F5FEFD] dark:bg-[#111111] text-gray-500 dark:text-gray-400 hover:bg-[#F5FEFD] dark:hover:bg-[#151515]"
             }`}
           >
             <LayoutGrid className="w-4 h-4" />
@@ -152,10 +152,10 @@ export function FileToolbar({
           <Button
             isIconOnly
             onPress={() => setViewMode("list")}
-            className={`border border-[#222222] border-l-0 h-10 w-10 ${
+            className={`border border-gray-200 dark:border-[#222222] border-l-0 h-10 w-10 ${
               viewMode === "list"
-                ? "bg-[#222222] text-white"
-                : "bg-[#111111] text-gray-400 hover:bg-[#151515]"
+                ? "bg-gray-100 dark:bg-[#222222] text-gray-900 dark:text-white"
+                : "bg-[#F5FEFD] dark:bg-[#111111] text-gray-500 dark:text-gray-400 hover:bg-[#F5FEFD] dark:hover:bg-[#151515]"
             }`}
           >
             <List className="w-4 h-4" />
