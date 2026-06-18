@@ -5,24 +5,24 @@ export async function POST(request: Request) {
     const { key } = await request.json();
 
     const apiUrl = (process.env.API_URL || process.env.NEXT_PUBLIC_API_URL) || 'http://localhost:3001';
-    const response = await fetch(`${apiUrl}/auth/verify`, {
+    const response = await fetch(`${apiUrl}/auth/login`, {
       method: 'POST',
       headers: {
-        'x-access-key': key,
+        'Content-Type': 'application/json',
       },
+      body: JSON.stringify({ keyword: key })
     });
 
     if (response.ok) {
       const data = await response.json();
-      if (data.valid) {
+      if (data.success) {
         const res = NextResponse.json({ success: true });
-        res.cookies.set('access_key', key, {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === 'production',
-          sameSite: 'lax',
-          path: '/',
-          maxAge: 60 * 60 * 24 * 7, // 1 week
-        });
+        
+        const setCookies = response.headers.getSetCookie();
+        for (const cookie of setCookies) {
+          res.headers.append('Set-Cookie', cookie);
+        }
+        
         return res;
       }
     } else if (response.status === 503) {

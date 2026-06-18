@@ -207,6 +207,8 @@ export default function Dashboard() {
       ? `${appConfig.apiUrl}/files/upload`
       : "/api/files/upload";
     xhr.open("POST", uploadUrl);
+    
+    xhr.withCredentials = true;
 
     if (appConfig?.accessKey) {
       xhr.setRequestHeader("x-access-key", appConfig.accessKey);

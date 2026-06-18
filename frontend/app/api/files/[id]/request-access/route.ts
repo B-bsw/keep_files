@@ -3,6 +3,7 @@ import { cookies } from 'next/headers';
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const cookieStore = await cookies();
+  const authCookie = cookieStore.get('auth')?.value;
   const accessKey = cookieStore.get('access_key')?.value;
   const apiUrl = (process.env.API_URL || process.env.NEXT_PUBLIC_API_URL) || 'http://localhost:3001';
   const id = (await params).id;
@@ -11,7 +12,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const res = await fetch(`${apiUrl}/files/${id}/request-access`, {
       method: 'POST',
       headers: {
-        'x-access-key': accessKey || '',
+        ...(authCookie ? { 'Cookie': `auth=${authCookie}` } : { 'x-access-key': accessKey || '' }),
       },
     });
 
