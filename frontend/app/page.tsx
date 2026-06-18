@@ -145,12 +145,19 @@ export default function Dashboard() {
   };
 
   const handleMultipleUploads = (files: File[]) => {
-    const newTasks: UploadTask[] = files.map((file) => ({
-      id: Math.random().toString(36).substring(7),
-      file,
-      progress: 0,
-      status: "uploading",
-    }));
+    const newTasks: UploadTask[] = files.map((file) => {
+      let finalFile = file;
+      if (file.name.toLowerCase().endsWith('.jpeg')) {
+        const newName = file.name.replace(/\.jpeg$/i, '.jpg');
+        finalFile = new File([file], newName, { type: file.type });
+      }
+      return {
+        id: Math.random().toString(36).substring(7),
+        file: finalFile,
+        progress: 0,
+        status: "uploading",
+      };
+    });
 
     setUploadTasks((prev) => [...prev, ...newTasks]);
 
@@ -332,7 +339,7 @@ export default function Dashboard() {
     <div className="min-h-screen bg-[#050505] text-white">
       <Header onLogout={handleLogout} />
 
-      <main className="max-w-4xl mx-auto px-6 py-12">
+      <main className="max-w-4xl mx-auto px-6 py-6">
         <UploadArea
           dragActive={dragActive}
           onDragEnter={handleDrag}
