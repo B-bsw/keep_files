@@ -69,7 +69,7 @@ export function FileToolbar({
             {selectedCount > 0 && (
               <Button
                 onPress={onBulkDelete}
-                className="bg-white text-red-600 hover:bg-white/90 rounded-lg h-10 px-4 "
+                className="bg-red-600 text-white hover:bg-red-600/80 rounded-lg h-10 px-4 "
               >
                 <Trash2 className="w-4 h-4" />
                 Delete ({selectedCount})

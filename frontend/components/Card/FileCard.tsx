@@ -4,8 +4,20 @@ import {
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { FileData } from "../../types";
-import { formatBytes, getFileIcon } from "../../utils";
+import { formatBytes } from "../../utils";
 import { FileActionMenu } from "./FileActionMenu";
+
+const getFileNameWithoutExtension = (fileName: string) => {
+  const lastDotIndex = fileName.lastIndexOf('.');
+  if (lastDotIndex === -1) return fileName;
+  return fileName.substring(0, lastDotIndex);
+};
+
+const getFileExtensionText = (fileName: string) => {
+  const lastDotIndex = fileName.lastIndexOf('.');
+  if (lastDotIndex === -1) return 'FILE';
+  return fileName.substring(lastDotIndex + 1).toUpperCase();
+};
 
 type FileCardProps = {
   file: FileData;
@@ -38,7 +50,10 @@ export function FileCard({
   if (viewMode === "list") {
     return (
       <div
-        onClick={handlePreviewOrDownload}
+        onClick={(e) => {
+          e.stopPropagation();
+          onToggleSelection(file.id);
+        }}
         className={`group flex items-center gap-3 md:gap-4 px-3 py-2.5 md:px-4 md:py-3 rounded-lg border cursor-pointer transition-colors w-full select-none overflow-hidden ${
           isSelected
             ? "border-white bg-[#1a1a1a]"
@@ -58,10 +73,8 @@ export function FileCard({
             <Square className="w-4 h-4 md:w-5 md:h-5" />
           )}
         </div>
-        
-        <div className="text-gray-500 shrink-0 flex items-center justify-center w-6 h-6 md:w-8 md:h-8">
-          {getFileIcon(file.mimeType)}
-        </div>
+
+
 
         <div className="flex-1 min-w-0 flex flex-col md:flex-row md:items-center justify-between gap-1 md:gap-4">
           <div className="flex-1 min-w-0 flex flex-col">
@@ -69,14 +82,15 @@ export function FileCard({
               className="font-medium text-sm text-gray-200 truncate"
               title={file.originalName}
             >
-              {file.originalName}
+              {getFileNameWithoutExtension(file.originalName)}
             </h4>
             <p className="text-[11px] text-gray-500 truncate md:hidden mt-0.5">
-              {formatBytes(file.size)} • {file.uploaderName || "anonymous"}
+              <span className="uppercase font-medium text-gray-400">{getFileExtensionText(file.originalName)}</span> • {formatBytes(file.size)} • {file.uploaderName || "anonymous"}
             </p>
           </div>
-          
+
           <div className="hidden md:flex shrink-0 w-[400px] items-center gap-4 text-xs text-gray-500">
+            <span className="w-16 uppercase font-medium text-gray-400">{getFileExtensionText(file.originalName)}</span>
             <span className="flex-1 truncate">{file.uploaderName || "anonymous"}</span>
             <span className="w-20 font-mono text-right">{formatBytes(file.size)}</span>
             <span className="w-32 font-mono text-right text-nowrap">
@@ -94,7 +108,10 @@ export function FileCard({
 
   return (
     <div
-      onClick={handlePreviewOrDownload}
+      onClick={(e) => {
+        e.stopPropagation();
+        onToggleSelection(file.id);
+      }}
       className={`group flex flex-col rounded-lg border cursor-pointer transition-colors relative overflow-hidden select-none ${
         isSelected
           ? "border-white bg-[#1a1a1a]"
@@ -121,21 +138,17 @@ export function FileCard({
         <FileActionMenu file={file} onActionRequest={onActionRequest} onDelete={onDelete} className="bg-[#111111]/80 backdrop-blur-sm rounded-md border border-[#222222]" />
       </div>
 
-      <div className="h-36 bg-[#0a0a0a] border-b border-[#222222] flex items-center justify-center relative">
-        <div className="text-gray-700 scale-150 transform">
-          {getFileIcon(file.mimeType)}
-        </div>
-      </div>
 
-      <div className="p-4 flex flex-col">
+
+      <div className="p-4 pt-10 flex flex-col flex-1">
         <h4
           className="font-medium text-sm text-gray-200 truncate mb-1"
           title={file.originalName}
         >
-          {file.originalName}
+          {getFileNameWithoutExtension(file.originalName)}
         </h4>
         <p className="text-xs text-gray-500 truncate mb-4">
-          by {file.uploaderName || "anonymous"}
+          <span className="uppercase font-medium text-gray-400">{getFileExtensionText(file.originalName)}</span> • {file.uploaderName || "anonymous"}
         </p>
 
         <div className="flex justify-between items-center w-full font-mono text-[10px] text-gray-600">

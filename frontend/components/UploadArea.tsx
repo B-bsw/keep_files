@@ -28,10 +28,10 @@ export function UploadArea({
   return (
     <div className="mb-12">
       <div
-        className={`relative rounded-lg border transition-colors ${
+        className={`relative rounded-lg border-2 border-dashed transition-colors ${
           dragActive
-            ? "border-white bg-[#1a1a1a]"
-            : "border-[#222222] bg-[#111111] hover:bg-[#151515] hover:border-[#333333]"
+            ? "border-white/50 bg-[#1a1a1a]"
+            : "border-[#222222] bg-[#111111] hover:bg-[#151515] hover:border-white/50"
         }`}
         onDragEnter={onDragEnter}
         onDragLeave={onDragLeave}
@@ -45,15 +45,13 @@ export function UploadArea({
           className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
           onChange={handleChange}
         />
-        <div className="py-12 sm:py-20 px-6 sm:px-10 text-center flex flex-col items-center justify-center">
+        <div className="py-12 sm:py-20 px-6 sm:px-10 text-center flex flex-col items-center justify-center ">
           <div className="mb-4">
             <CloudUpload
-              className={`w-8 h-8 ${dragActive ? "text-white" : "text-gray-400"}`}
+              className={`w-8 h-8 ${dragActive ? "text-white" : "text-gray-400"} animate-pulse`}
             />
           </div>
-          <h3 className="text-lg font-medium text-white mb-1">
-            Upload files
-          </h3>
+          <h3 className="text-lg font-medium text-white mb-1">Upload files</h3>
           <p className="text-sm text-gray-500">
             Drag and drop or click to browse
           </p>
