@@ -76,7 +76,7 @@ export function FileToolbar({
             {selectedCount > 0 && (
               <Button
                 onPress={onBulkDelete}
-                className="bg-red-600 text-white hover:bg-red-600/80 rounded-lg h-10 px-4 "
+                className="dark:bg-red-700 text-white dark:hover:bg-red-700/80 rounded-lg h-10 px-4 bg-red-600 hover:bg-red-600/80 "
               >
                 <Trash2 className="w-4 h-4" />
                 Delete ({selectedCount})
@@ -117,16 +117,26 @@ export function FileToolbar({
                         <div className="flex items-center justify-between w-full">
                           <div className="flex items-center gap-2">
                             <div className="w-4 flex justify-center">
-                              {sortOption === val && <Check className="w-4 h-4 text-gray-900 dark:text-white" />}
+                              {sortOption === val && (
+                                <Check className="w-4 h-4 text-gray-900 dark:text-white" />
+                              )}
                             </div>
-                            <Icon className={`w-4 h-4 ${sortOption === val ? "opacity-100 text-gray-900 dark:text-white" : "opacity-70 text-gray-500 dark:text-gray-400"}`} />
+                            <Icon
+                              className={`w-4 h-4 ${sortOption === val ? "opacity-100 text-gray-900 dark:text-white" : "opacity-70 text-gray-500 dark:text-gray-400"}`}
+                            />
                             <Label
-                              className={sortOption === val ? "text-gray-900 dark:text-white font-medium" : "text-gray-600 dark:text-gray-400"}
+                              className={
+                                sortOption === val
+                                  ? "text-gray-900 dark:text-white font-medium"
+                                  : "text-gray-600 dark:text-gray-400"
+                              }
                             >
                               {label}
                             </Label>
                           </div>
-                          <DirIcon className={`w-3 h-3 ${sortOption === val ? "opacity-100 text-gray-900 dark:text-white" : "opacity-50 text-gray-400 dark:text-gray-500"}`} />
+                          <DirIcon
+                            className={`w-3 h-3 ${sortOption === val ? "opacity-100 text-gray-900 dark:text-white" : "opacity-50 text-gray-400 dark:text-gray-500"}`}
+                          />
                         </div>
                       </Dropdown.Item>
                     );
