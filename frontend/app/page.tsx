@@ -147,8 +147,8 @@ export default function Dashboard() {
   const handleMultipleUploads = (files: File[]) => {
     const newTasks: UploadTask[] = files.map((file) => {
       let finalFile = file;
-      if (file.name.toLowerCase().endsWith('.jpeg')) {
-        const newName = file.name.replace(/\.jpeg$/i, '.jpg');
+      if (file.name.toLowerCase().endsWith(".jpeg")) {
+        const newName = file.name.replace(/\.jpeg$/i, ".jpg");
         finalFile = new File([file], newName, { type: file.type });
       }
       return {
@@ -202,7 +202,10 @@ export default function Dashboard() {
       setUploadTasks((prev) =>
         prev.map((t) => (t.id === task.id ? { ...t, status: "error" } : t)),
       );
-      toast(`อัปโหลดไฟล์ ${task.file.name} ไม่สำเร็จ กรุณาตรวจสอบการเชื่อมต่อ`, { variant: "danger" });
+      toast(
+        `อัปโหลดไฟล์ ${task.file.name} ไม่สำเร็จ กรุณาตรวจสอบการเชื่อมต่อ`,
+        { variant: "danger" },
+      );
     });
 
     const uploadUrl = appConfig
@@ -220,7 +223,8 @@ export default function Dashboard() {
   const handleDelete = (id: string) => {
     setConfirmAction({
       title: "Delete File",
-      description: "Are you sure you want to delete this file? This action cannot be undone.",
+      description:
+        "Are you sure you want to delete this file? This action cannot be undone.",
       onConfirm: async () => {
         try {
           const res = await fetch(`/api/files/${id}`, { method: "DELETE" });
@@ -317,12 +321,19 @@ export default function Dashboard() {
     }
   };
 
-  const handleEditFile = async (id: string, newName: string, newUploader: string) => {
+  const handleEditFile = async (
+    id: string,
+    newName: string,
+    newUploader: string,
+  ) => {
     try {
       const res = await fetch(`/api/files/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ originalName: newName, uploaderName: newUploader })
+        body: JSON.stringify({
+          originalName: newName,
+          uploaderName: newUploader,
+        }),
       });
       if (res.ok) {
         await fetchFiles();
@@ -365,6 +376,22 @@ export default function Dashboard() {
             sortOption={sortOption}
             setSortOption={setSortOption}
           />
+
+          {viewMode === "list" && files.length > 0 && !loading && !error && (
+            <div className="hidden md:flex items-center gap-3 md:gap-4 px-3 md:px-4 py-2 mt-4 mb-2 text-[10px] font-semibold text-gray-500 uppercase tracking-widest border-b border-white/5 select-none">
+              <div className="w-4 h-4 md:w-5 md:h-5 shrink-0" />
+              <div className="flex-1 min-w-0 flex items-center justify-between gap-1 md:gap-4">
+                <div className="flex-1 min-w-0">Name</div>
+                <div className="hidden md:flex shrink-0 w-[400px] items-center gap-4">
+                  <div className="w-16">Type</div>
+                  <div className="flex-1">Uploader</div>
+                  <div className="w-20 text-right">Size</div>
+                  <div className="w-32 text-right">Date</div>
+                </div>
+              </div>
+              <div className="w-8 shrink-0 pl-1" />
+            </div>
+          )}
 
           {error ? (
             <div className="text-center py-20 border border-white/20 rounded-3xl bg-white/5">
