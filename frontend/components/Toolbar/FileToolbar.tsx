@@ -5,17 +5,24 @@ import {
   LayoutGrid,
   List,
   SquareCheck,
+  ArrowUpDown,
+  Clock,
+  HardDrive,
+  Type,
+  ArrowDown,
+  ArrowUp,
+  Check,
 } from "lucide-react";
 import { Button, Dropdown, ButtonGroup, Label } from "@heroui/react";
 import { SortOption } from "../../types";
 
 const SORT_LABELS: Record<SortOption, string> = {
-  "date-desc": "Newest First",
-  "date-asc": "Oldest First",
-  "size-desc": "Largest First",
-  "size-asc": "Smallest First",
-  "name-asc": "Name (A-Z)",
-  "name-desc": "Name (Z-A)",
+  "date-desc": "Date",
+  "date-asc": "Date",
+  "size-desc": "Size",
+  "size-asc": "Size",
+  "name-desc": "Name",
+  "name-asc": "Name",
 };
 
 type FileToolbarProps = {
@@ -80,32 +87,55 @@ export function FileToolbar({
       </div>
 
       <div className="flex flex-wrap items-center gap-3 w-full md:w-auto mt-2 md:mt-0">
-        <Dropdown>
-          <Button className="bg-[#111111] border border-[#222222] text-gray-300 hover:text-white hover:bg-[#151515] rounded-lg h-10 px-4">
-            {SORT_LABELS[sortOption]}
-            <ChevronDown className="w-4 h-4 opacity-50" />
-          </Button>
-          <Dropdown.Popover>
-            <Dropdown.Menu
-              aria-label="Sort options"
-              selectedKeys={new Set([sortOption])}
-              selectionMode="single"
-              onSelectionChange={(keys) =>
-                setSortOption(Array.from(keys)[0] as SortOption)
-              }
-            >
-              {(Object.entries(SORT_LABELS) as [SortOption, string][]).map(
-                ([val, label]) => (
-                  <Dropdown.Item key={val} id={val} textValue={label}>
-                    <Label className={sortOption === val ? "text-white" : ""}>
-                      {label}
-                    </Label>
-                  </Dropdown.Item>
-                ),
-              )}
-            </Dropdown.Menu>
-          </Dropdown.Popover>
-        </Dropdown>
+        <div className={viewMode === "list" ? "block md:hidden" : "block"}>
+          <Dropdown>
+            <Button className="bg-[#111111] border border-[#222222] text-gray-300 hover:text-white hover:bg-[#151515] rounded-lg h-10 px-4 flex items-center gap-2">
+              <ArrowUpDown className="w-4 h-4 opacity-70" />
+              <span>{SORT_LABELS[sortOption]}</span>
+              <ChevronDown className="w-4 h-4 opacity-50" />
+            </Button>
+            <Dropdown.Popover>
+              <Dropdown.Menu
+                aria-label="Sort options"
+                selectedKeys={new Set([sortOption])}
+                selectionMode="single"
+                disallowEmptySelection
+                onSelectionChange={(keys) =>
+                  setSortOption(Array.from(keys)[0] as SortOption)
+                }
+              >
+                {(Object.entries(SORT_LABELS) as [SortOption, string][]).map(
+                  ([val, label]) => {
+                    const Icon = val.startsWith("date")
+                      ? Clock
+                      : val.startsWith("size")
+                        ? HardDrive
+                        : Type;
+                    const DirIcon = val.endsWith("desc") ? ArrowDown : ArrowUp;
+                    return (
+                      <Dropdown.Item key={val} id={val} textValue={label}>
+                        <div className="flex items-center justify-between w-full">
+                          <div className="flex items-center gap-2">
+                            <div className="w-4 flex justify-center">
+                              {sortOption === val && <Check className="w-4 h-4 text-white" />}
+                            </div>
+                            <Icon className={`w-4 h-4 ${sortOption === val ? "opacity-100 text-white" : "opacity-70 text-gray-400"}`} />
+                            <Label
+                              className={sortOption === val ? "text-white font-medium" : "text-gray-400"}
+                            >
+                              {label}
+                            </Label>
+                          </div>
+                          <DirIcon className={`w-3 h-3 ${sortOption === val ? "opacity-100 text-white" : "opacity-50 text-gray-500"}`} />
+                        </div>
+                      </Dropdown.Item>
+                    );
+                  },
+                )}
+              </Dropdown.Menu>
+            </Dropdown.Popover>
+          </Dropdown>
+        </div>
 
         <ButtonGroup>
           <Button

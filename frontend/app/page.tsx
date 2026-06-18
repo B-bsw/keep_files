@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, File as FileIcon, Trash2 } from "lucide-react";
+import { Loader2, File as FileIcon, Trash2, ArrowDown, ArrowUp } from "lucide-react";
 import { FileData, UploadTask, DeleteTask, SortOption } from "../types";
 import { Header } from "../components/Header/Header";
 import { UploadArea } from "../components/UploadArea";
@@ -482,12 +482,36 @@ export default function Dashboard() {
             <div className="hidden md:flex items-center gap-3 md:gap-4 px-3 md:px-4 py-2 mt-4 mb-2 text-[10px] font-semibold text-gray-500 uppercase tracking-widest border-b border-white/5 select-none">
               <div className="w-4 h-4 md:w-5 md:h-5 shrink-0" />
               <div className="flex-1 min-w-0 flex items-center justify-between gap-1 md:gap-4">
-                <div className="flex-1 min-w-0">Name</div>
+                <div 
+                  className="flex-1 min-w-0 flex items-center gap-1 cursor-pointer hover:text-white transition-colors"
+                  onClick={() => setSortOption(sortOption === "name-desc" ? "name-asc" : "name-desc")}
+                >
+                  Name
+                  {sortOption.startsWith("name") && (
+                    sortOption.endsWith("desc") ? <ArrowDown className="w-3 h-3" /> : <ArrowUp className="w-3 h-3" />
+                  )}
+                </div>
                 <div className="hidden md:flex shrink-0 w-100 items-center gap-4">
                   <div className="w-16">Type</div>
                   <div className="flex-1">Uploader</div>
-                  <div className="w-20 text-right">Size</div>
-                  <div className="w-32 text-right">Date</div>
+                  <div 
+                    className="w-20 flex justify-end items-center gap-1 cursor-pointer hover:text-white transition-colors"
+                    onClick={() => setSortOption(sortOption === "size-desc" ? "size-asc" : "size-desc")}
+                  >
+                    Size
+                    {sortOption.startsWith("size") && (
+                      sortOption.endsWith("desc") ? <ArrowDown className="w-3 h-3" /> : <ArrowUp className="w-3 h-3" />
+                    )}
+                  </div>
+                  <div 
+                    className="w-32 flex justify-end items-center gap-1 cursor-pointer hover:text-white transition-colors"
+                    onClick={() => setSortOption(sortOption === "date-desc" ? "date-asc" : "date-desc")}
+                  >
+                    Date
+                    {sortOption.startsWith("date") && (
+                      sortOption.endsWith("desc") ? <ArrowDown className="w-3 h-3" /> : <ArrowUp className="w-3 h-3" />
+                    )}
+                  </div>
                 </div>
               </div>
               <div className="w-8 shrink-0 pl-1" />
