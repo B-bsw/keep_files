@@ -3,10 +3,11 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, File as FileIcon, Trash2 } from "lucide-react";
-import { FileData, UploadTask, SortOption } from "../types";
+import { FileData, UploadTask, DeleteTask, SortOption } from "../types";
 import { Header } from "../components/Header/Header";
 import { UploadArea } from "../components/UploadArea";
 import { UploadProgressList } from "../components/Progress/UploadProgressList";
+import { DeleteProgressList } from "../components/Progress/DeleteProgressList";
 import { FileToolbar } from "../components/Toolbar/FileToolbar";
 import { FileCard } from "../components/Card/FileCard";
 import { PreviewModal } from "../components/Modal/PreviewModal";
@@ -19,6 +20,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [uploadTasks, setUploadTasks] = useState<UploadTask[]>([]);
+  const [deleteTasks, setDeleteTasks] = useState<DeleteTask[]>([]);
   const [dragActive, setDragActive] = useState(false);
 
   const [viewMode, setViewMode] = useState<"grid" | "list">("list");
@@ -101,17 +103,7 @@ export default function Dashboard() {
       .catch(console.error);
   }, []);
 
-  useEffect(() => {
-    const hasUploading = uploadTasks.some((t) => t.status === "uploading");
-    const hasSuccess = uploadTasks.some((t) => t.status === "success");
-
-    if (!hasUploading && hasSuccess) {
-      const timer = setTimeout(() => {
-        setUploadTasks((prev) => prev.filter((t) => t.status !== "success"));
-      }, 500);
-      return () => clearTimeout(timer);
-    }
-  }, [uploadTasks]);
+  // We will handle cleanup individually inside the functions so they don't block each other
 
   const handleLogout = async () => {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -189,6 +181,9 @@ export default function Dashboard() {
             t.id === task.id ? { ...t, status: "success", progress: 100 } : t,
           ),
         );
+        setTimeout(() => {
+          setUploadTasks((prev) => prev.filter((t) => t.id !== task.id));
+        }, 150);
         await fetchFiles();
       } else {
         setUploadTasks((prev) =>
@@ -221,23 +216,70 @@ export default function Dashboard() {
   };
 
   const handleDelete = (id: string) => {
+    const fileToDelete = files.find((f) => f.id === id);
+    if (!fileToDelete) return;
+
     setConfirmAction({
       title: "Delete File",
       description:
         "Are you sure you want to delete this file? This action cannot be undone.",
       onConfirm: async () => {
+        const taskId = id;
+        setDeleteTasks((prev) => [
+          ...prev,
+          {
+            id: taskId,
+            fileName: fileToDelete.originalName,
+            progress: 0,
+            status: "deleting",
+          },
+        ]);
+
+        const progressInterval = setInterval(() => {
+          setDeleteTasks((prev) =>
+            prev.map((t) => {
+              if (t.id === taskId && t.status === "deleting") {
+                return { ...t, progress: Math.min(t.progress + 15, 90) };
+              }
+              return t;
+            }),
+          );
+        }, 100);
+
         try {
           const res = await fetch(`/api/files/${id}`, { method: "DELETE" });
+          clearInterval(progressInterval);
           if (res.ok) {
+            setDeleteTasks((prev) =>
+              prev.map((t) =>
+                t.id === taskId
+                  ? { ...t, status: "success", progress: 100 }
+                  : t,
+              ),
+            );
+            setTimeout(() => {
+              setDeleteTasks((prev) => prev.filter((t) => t.id !== taskId));
+            }, 150);
             setFiles((prev) => prev.filter((f) => f.id !== id));
             if (selectedFiles.has(id)) {
               const newSelected = new Set(selectedFiles);
               newSelected.delete(id);
               setSelectedFiles(newSelected);
             }
+          } else {
+            setDeleteTasks((prev) =>
+              prev.map((t) =>
+                t.id === taskId ? { ...t, status: "error" } : t,
+              ),
+            );
+            toast("Error deleting file", { variant: "danger" });
           }
         } catch (error) {
+          clearInterval(progressInterval);
           console.error(error);
+          setDeleteTasks((prev) =>
+            prev.map((t) => (t.id === taskId ? { ...t, status: "error" } : t)),
+          );
           toast("Error deleting file", { variant: "danger" });
         }
       },
@@ -252,16 +294,74 @@ export default function Dashboard() {
       title: "Delete Files",
       description: `Are you sure you want to delete ${selectedFiles.size} items? This action cannot be undone.`,
       onConfirm: async () => {
+        const filesToDelete = Array.from(selectedFiles)
+          .map((id) => files.find((f) => f.id === id))
+          .filter(Boolean) as FileData[];
+
+        const newTasks: DeleteTask[] = filesToDelete.map((f) => ({
+          id: f.id,
+          fileName: f.originalName,
+          progress: 0,
+          status: "deleting",
+        }));
+
+        setDeleteTasks((prev) => [...prev, ...newTasks]);
+
+        const progressInterval = setInterval(() => {
+          setDeleteTasks((prev) =>
+            prev.map((t) => {
+              if (
+                newTasks.some((nt) => nt.id === t.id) &&
+                t.status === "deleting"
+              ) {
+                return { ...t, progress: Math.min(t.progress + 15, 90) };
+              }
+              return t;
+            }),
+          );
+        }, 100);
+
         try {
           await Promise.all(
-            Array.from(selectedFiles).map((id) =>
-              fetch(`/api/files/${id}`, { method: "DELETE" }),
-            ),
+            filesToDelete.map(async (f) => {
+              try {
+                const res = await fetch(`/api/files/${f.id}`, {
+                  method: "DELETE",
+                });
+                if (res.ok) {
+                  setDeleteTasks((prev) =>
+                    prev.map((t) =>
+                      t.id === f.id
+                        ? { ...t, status: "success", progress: 100 }
+                        : t,
+                    ),
+                  );
+                  setTimeout(() => {
+                    setDeleteTasks((prev) => prev.filter((t) => t.id !== f.id));
+                  }, 150);
+                } else {
+                  setDeleteTasks((prev) =>
+                    prev.map((t) =>
+                      t.id === f.id ? { ...t, status: "error" } : t,
+                    ),
+                  );
+                }
+              } catch (error) {
+                setDeleteTasks((prev) =>
+                  prev.map((t) =>
+                    t.id === f.id ? { ...t, status: "error" } : t,
+                  ),
+                );
+              }
+            }),
           );
+
+          clearInterval(progressInterval);
 
           setFiles((prev) => prev.filter((f) => !selectedFiles.has(f.id)));
           setSelectedFiles(new Set());
         } catch (error) {
+          clearInterval(progressInterval);
           console.error(error);
           toast("Error deleting some files", { variant: "danger" });
         }
@@ -361,6 +461,7 @@ export default function Dashboard() {
         />
 
         <UploadProgressList tasks={uploadTasks} />
+        <DeleteProgressList tasks={deleteTasks} />
 
         <div>
           <FileToolbar
@@ -382,7 +483,7 @@ export default function Dashboard() {
               <div className="w-4 h-4 md:w-5 md:h-5 shrink-0" />
               <div className="flex-1 min-w-0 flex items-center justify-between gap-1 md:gap-4">
                 <div className="flex-1 min-w-0">Name</div>
-                <div className="hidden md:flex shrink-0 w-[400px] items-center gap-4">
+                <div className="hidden md:flex shrink-0 w-100 items-center gap-4">
                   <div className="w-16">Type</div>
                   <div className="flex-1">Uploader</div>
                   <div className="w-20 text-right">Size</div>
@@ -418,7 +519,7 @@ export default function Dashboard() {
               <Loader2 className="w-8 h-8 animate-spin text-white" />
             </div>
           ) : files.length === 0 ? (
-            <div className="text-center py-20 border border-white/5 rounded-3xl bg-white/[0.02]">
+            <div className="text-center py-20 border border-white/5 rounded-3xl bg-white/2">
               <FileIcon className="w-16 h-16 text-gray-600 mx-auto mb-4" />
               <p className="text-xl text-gray-400">No files uploaded yet.</p>
             </div>
