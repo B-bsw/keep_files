@@ -22,3 +22,28 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     return NextResponse.json({ error: 'Failed to delete file' }, { status: 500 });
   }
 }
+
+export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const cookieStore = await cookies();
+  const accessKey = cookieStore.get('access_key')?.value;
+  const apiUrl = (process.env.API_URL || process.env.NEXT_PUBLIC_API_URL) || 'http://localhost:3001';
+  const id = (await params).id;
+
+  try {
+    const body = await request.json();
+    const res = await fetch(`${apiUrl}/files/${id}`, {
+      method: 'PATCH',
+      headers: {
+        'x-access-key': accessKey || '',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+
+    if (!res.ok) throw new Error('Failed to update file');
+    const data = await res.json();
+    return NextResponse.json(data);
+  } catch (error) {
+    return NextResponse.json({ error: 'Failed to update file' }, { status: 500 });
+  }
+}

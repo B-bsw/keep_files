@@ -11,6 +11,7 @@ import { FileToolbar } from "../components/Toolbar/FileToolbar";
 import { FileCard } from "../components/Card/FileCard";
 import { PreviewModal } from "../components/Modal/PreviewModal";
 import { ConfirmModal } from "../components/Modal/ConfirmModal";
+import { EditModal } from "../components/Modal/EditModal";
 import { Button, toast } from "@heroui/react";
 
 export default function Dashboard() {
@@ -20,7 +21,7 @@ export default function Dashboard() {
   const [uploadTasks, setUploadTasks] = useState<UploadTask[]>([]);
   const [dragActive, setDragActive] = useState(false);
 
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [viewMode, setViewMode] = useState<"grid" | "list">("list");
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
   const [previewModalOpen, setPreviewModalOpen] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -35,6 +36,9 @@ export default function Dashboard() {
     description: string;
     onConfirm: () => void;
   } | null>(null);
+
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [fileToEdit, setFileToEdit] = useState<FileData | null>(null);
 
   const [sortOption, setSortOption] = useState<SortOption>("date-desc");
 
@@ -158,7 +162,7 @@ export default function Dashboard() {
   const uploadSingleFile = (task: UploadTask) => {
     const formData = new FormData();
     formData.append("file", task.file);
-    formData.append("uploaderName", "Web User");
+    formData.append("uploaderName", "anonymous");
 
     const xhr = new XMLHttpRequest();
 
@@ -274,9 +278,15 @@ export default function Dashboard() {
   };
 
   const handleActionRequest = async (
-    type: "download" | "preview",
+    type: "download" | "preview" | "edit",
     file: FileData,
   ) => {
+    if (type === "edit") {
+      setFileToEdit(file);
+      setEditModalOpen(true);
+      return;
+    }
+
     try {
       const res = await fetch(`/api/files/${file.id}/request-access`, {
         method: "POST",
@@ -297,6 +307,24 @@ export default function Dashboard() {
     } catch (error) {
       console.error(error);
       toast("Error requesting file access", { variant: "danger" });
+    }
+  };
+
+  const handleEditFile = async (id: string, newName: string, newUploader: string) => {
+    try {
+      const res = await fetch(`/api/files/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ originalName: newName, uploaderName: newUploader })
+      });
+      if (res.ok) {
+        await fetchFiles();
+        toast("File updated successfully");
+      } else {
+        toast("Failed to update file", { variant: "danger" });
+      }
+    } catch (err) {
+      toast("Error updating file", { variant: "danger" });
     }
   };
 
@@ -399,6 +427,13 @@ export default function Dashboard() {
           if (confirmAction?.onConfirm) confirmAction.onConfirm();
         }}
         confirmText="Delete"
+      />
+
+      <EditModal
+        isOpen={editModalOpen}
+        onOpenChange={setEditModalOpen}
+        file={fileToEdit}
+        onSave={handleEditFile}
       />
     </div>
   );

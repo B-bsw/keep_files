@@ -1,4 +1,3 @@
-import { motion } from "framer-motion";
 import {
   Square,
   Trash2,
@@ -43,21 +42,21 @@ export function FileToolbar({
   setSortOption,
 }: FileToolbarProps) {
   return (
-    <div className="flex items-center justify-between mb-6">
-      <div className="flex items-center gap-4">
-        <h2 className="text-2xl font-semibold flex items-center gap-3">
+    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+      <div className="flex flex-wrap items-center gap-4">
+        <h2 className="text-xl sm:text-2xl font-semibold flex items-center gap-3">
           Your Files
-          <span className="text-sm font-normal text-gray-500 bg-white/10 px-3 py-1 rounded-full">
+          <span className="text-sm font-normal text-gray-500 bg-[#111111] border border-[#222222] px-3 py-1 rounded-lg">
             {filesCount}
           </span>
         </h2>
 
         {filesCount > 0 && (
-          <div className="flex items-center gap-3 ml-4 pl-4 border-l border-white/10">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3 ml-0 sm:ml-4 pl-0 sm:pl-4 sm:border-l border-[#222222] w-full sm:w-auto">
             <Button
               onPress={onToggleSelectAll}
               variant="ghost"
-              className="text-gray-400 hover:text-white"
+              className="text-gray-400 hover:text-white rounded-lg h-10 px-3"
             >
               {isAllSelected ? (
                 <SquareCheck className="w-5 h-5 text-white" />
@@ -68,25 +67,19 @@ export function FileToolbar({
             </Button>
 
             {selectedCount > 0 && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-              >
-                <Button onPress={onBulkDelete} variant="secondary" className="bg-white text-black hover:bg-white/90">
-                  <Trash2 className="w-4 h-4" />
-                  Delete ({selectedCount})
-                </Button>
-              </motion.div>
+              <Button onPress={onBulkDelete} className="bg-white text-black hover:bg-white/90 rounded-lg h-10 px-4">
+                <Trash2 className="w-4 h-4" />
+                Delete ({selectedCount})
+              </Button>
             )}
           </div>
         )}
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3 w-full md:w-auto mt-2 md:mt-0">
         <Dropdown>
           <Button
-            variant="secondary"
-            className="bg-white/5 border border-white/10 text-gray-300"
+            className="bg-[#111111] border border-[#222222] text-gray-300 hover:text-white hover:bg-[#151515] rounded-lg h-10 px-4"
           >
             {SORT_LABELS[sortOption]}
             <ChevronDown className="w-4 h-4 opacity-50" />
@@ -115,22 +108,22 @@ export function FileToolbar({
           </Dropdown.Popover>
         </Dropdown>
 
-        <ButtonGroup variant="secondary">
+        <ButtonGroup>
           <Button
             isIconOnly
             onPress={() => setViewMode("grid")}
-            className={
-              viewMode === "grid" ? "bg-white/10 text-white" : "text-gray-400"
-            }
+            className={`border border-[#222222] h-10 w-10 ${
+              viewMode === "grid" ? "bg-[#222222] text-white" : "bg-[#111111] text-gray-400 hover:bg-[#151515]"
+            }`}
           >
             <LayoutGrid className="w-4 h-4" />
           </Button>
           <Button
             isIconOnly
             onPress={() => setViewMode("list")}
-            className={
-              viewMode === "list" ? "bg-white/10 text-white" : "text-gray-400"
-            }
+            className={`border border-[#222222] border-l-0 h-10 w-10 ${
+              viewMode === "list" ? "bg-[#222222] text-white" : "bg-[#111111] text-gray-400 hover:bg-[#151515]"
+            }`}
           >
             <List className="w-4 h-4" />
           </Button>

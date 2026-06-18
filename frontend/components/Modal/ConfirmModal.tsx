@@ -23,7 +23,7 @@ export function ConfirmModal({
     <Modal isOpen={isOpen} onOpenChange={onOpenChange}>
       <Modal.Backdrop>
         <Modal.Container>
-          <Modal.Dialog className="border border-white/10 bg-black shadow-2xl">
+          <Modal.Dialog className="border border-[#222222] bg-[#050505] rounded-lg">
             <Modal.CloseTrigger className="text-gray-400 hover:text-white" />
             <Modal.Header>
               <Modal.Heading className="text-white">{title}</Modal.Heading>
@@ -32,7 +32,7 @@ export function ConfirmModal({
               <p className="text-gray-300">{description}</p>
             </Modal.Body>
             <Modal.Footer>
-              <Button slot="close" variant="secondary" className="text-white hover:bg-white/10 border border-white/10 bg-white/5">
+              <Button slot="close" className="text-white hover:bg-[#151515] hover:border-[#333333] border border-[#222222] bg-[#111111] rounded-lg">
                 {cancelText}
               </Button>
               <Button
@@ -40,7 +40,7 @@ export function ConfirmModal({
                   onConfirm();
                   onOpenChange(false);
                 }}
-                className="bg-white text-black hover:bg-white/90"
+                className="bg-white text-black hover:bg-white/90 rounded-lg"
               >
                 {confirmText}
               </Button>
