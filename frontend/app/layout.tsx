@@ -17,6 +17,8 @@ export const metadata: Metadata = {
   description: "Secure, fast, and beautiful cloud file storage.",
 };
 
+import { Toast } from "@heroui/react";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -27,7 +29,8 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased dark`}
     >
-      <body className="min-h-full flex flex-col bg-[#050505] text-white selection:bg-indigo-500/30">
+      <body className="min-h-full flex flex-col bg-[#050505] text-white selection:bg-white/30">
+        <Toast.Provider />
         {children}
       </body>
     </html>

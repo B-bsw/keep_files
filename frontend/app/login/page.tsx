@@ -2,9 +2,8 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { motion } from 'framer-motion';
-import { Lock, ArrowRight, Loader2 } from 'lucide-react';
-import { Card, TextField, Label, Input, FieldError, Button } from '@heroui/react';
+import { ArrowRight } from 'lucide-react';
+import { Button } from '@heroui/react';
 
 export default function LoginPage() {
   const [key, setKey] = useState('');
@@ -38,58 +37,40 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#0a0a0a] bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(120,119,198,0.3),rgba(255,255,255,0))]">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="w-full max-w-md p-8"
-      >
-        <Card className="bg-white/5 backdrop-blur-xl border border-white/10 shadow-2xl">
-          <Card.Content className="p-8">
-            <div className="flex justify-center mb-8">
-              <div className="w-16 h-16 rounded-full bg-indigo-500/20 flex items-center justify-center border border-indigo-500/30">
-                <Lock className="w-8 h-8 text-indigo-400" />
-              </div>
-            </div>
-            
-            <div className="text-center mb-8">
-              <h1 className="text-3xl font-bold text-white mb-2 tracking-tight">Keep Files</h1>
-              <p className="text-gray-400">Enter your access key to continue</p>
-            </div>
+    <div className="min-h-screen flex flex-col justify-center bg-[#050505] px-6">
+      <div className="w-full max-w-sm mx-auto">
+        <div className="mb-10">
+          <h1 className="text-2xl font-semibold text-white mb-2 tracking-tight">Sign in to your Vault</h1>
+          <p className="text-gray-500 text-sm">Enter your secure access key to continue.</p>
+        </div>
 
-            <form onSubmit={handleLogin} className="space-y-6">
-              <div>
-                <TextField
-                  isRequired
-                  isInvalid={!!error}
-                  value={key}
-                  onChange={setKey}
-                  className="w-full"
-                >
-                  <Label className="sr-only">Access Key</Label>
-                  <Input
-                    type="password"
-                    placeholder="Enter Access Key"
-                    className="w-full bg-black/50 border-white/10 hover:border-white/20 focus:border-indigo-500 rounded-lg p-3 text-lg"
-                  />
-                  {error && <FieldError>{error}</FieldError>}
-                </TextField>
-              </div>
+        <form onSubmit={handleLogin} className="space-y-6">
+          <div className="space-y-2">
+            <label htmlFor="key" className="text-xs font-medium text-gray-400 uppercase tracking-widest">
+              Access Key
+            </label>
+            <input
+              id="key"
+              type="password"
+              required
+              value={key}
+              onChange={(e) => setKey(e.target.value)}
+              placeholder="••••••••••••••••"
+              className={`w-full bg-[#111111] border ${error ? 'border-white focus:border-white' : 'border-[#222222] focus:border-white'} rounded-lg p-4 text-white placeholder-gray-600 outline-none transition-colors font-mono text-sm`}
+            />
+            {error && <p className="text-white text-sm mt-2 flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-white"></span>{error}</p>}
+          </div>
 
-              <Button
-                type="submit"
-                isPending={loading}
-                size="lg"
-                className="w-full font-medium"
-              >
-                Continue
-                {!loading && <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />}
-              </Button>
-            </form>
-          </Card.Content>
-        </Card>
-      </motion.div>
+          <Button
+            type="submit"
+            isPending={loading}
+            className="w-full bg-white text-black hover:bg-white/90 font-medium rounded-lg h-12"
+          >
+            Continue
+            {!loading && <ArrowRight className="w-4 h-4 ml-2" />}
+          </Button>
+        </form>
+      </div>
     </div>
   );
 }

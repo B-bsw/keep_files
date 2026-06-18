@@ -10,7 +10,9 @@ import { UploadProgressList } from "../components/Progress/UploadProgressList";
 import { FileToolbar } from "../components/Toolbar/FileToolbar";
 import { FileCard } from "../components/Card/FileCard";
 import { PreviewModal } from "../components/Modal/PreviewModal";
-import { Button } from "@heroui/react";
+import { ConfirmModal } from "../components/Modal/ConfirmModal";
+import { EditModal } from "../components/Modal/EditModal";
+import { Button, toast } from "@heroui/react";
 
 export default function Dashboard() {
   const [files, setFiles] = useState<FileData[]>([]);
@@ -19,7 +21,7 @@ export default function Dashboard() {
   const [uploadTasks, setUploadTasks] = useState<UploadTask[]>([]);
   const [dragActive, setDragActive] = useState(false);
 
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [viewMode, setViewMode] = useState<"grid" | "list">("list");
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
   const [previewModalOpen, setPreviewModalOpen] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -27,6 +29,16 @@ export default function Dashboard() {
     apiUrl: string;
     accessKey: string;
   } | null>(null);
+
+  const [confirmModalOpen, setConfirmModalOpen] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<{
+    title: string;
+    description: string;
+    onConfirm: () => void;
+  } | null>(null);
+
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [fileToEdit, setFileToEdit] = useState<FileData | null>(null);
 
   const [sortOption, setSortOption] = useState<SortOption>("date-desc");
 
@@ -150,7 +162,7 @@ export default function Dashboard() {
   const uploadSingleFile = (task: UploadTask) => {
     const formData = new FormData();
     formData.append("file", task.file);
-    formData.append("uploaderName", "Web User");
+    formData.append("uploaderName", "anonymous");
 
     const xhr = new XMLHttpRequest();
 
@@ -175,7 +187,7 @@ export default function Dashboard() {
         setUploadTasks((prev) =>
           prev.map((t) => (t.id === task.id ? { ...t, status: "error" } : t)),
         );
-        alert(`อัปโหลดไฟล์ ${task.file.name} ไม่สำเร็จ`);
+        toast(`อัปโหลดไฟล์ ${task.file.name} ไม่สำเร็จ`, { variant: "danger" });
       }
     });
 
@@ -183,7 +195,7 @@ export default function Dashboard() {
       setUploadTasks((prev) =>
         prev.map((t) => (t.id === task.id ? { ...t, status: "error" } : t)),
       );
-      alert(`อัปโหลดไฟล์ ${task.file.name} ไม่สำเร็จ กรุณาตรวจสอบการเชื่อมต่อ`);
+      toast(`อัปโหลดไฟล์ ${task.file.name} ไม่สำเร็จ กรุณาตรวจสอบการเชื่อมต่อ`, { variant: "danger" });
     });
 
     const uploadUrl = appConfig
@@ -198,44 +210,53 @@ export default function Dashboard() {
     xhr.send(formData);
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this file?")) return;
-
-    try {
-      const res = await fetch(`/api/files/${id}`, { method: "DELETE" });
-      if (res.ok) {
-        setFiles(files.filter((f) => f.id !== id));
-        if (selectedFiles.has(id)) {
-          const newSelected = new Set(selectedFiles);
-          newSelected.delete(id);
-          setSelectedFiles(newSelected);
+  const handleDelete = (id: string) => {
+    setConfirmAction({
+      title: "Delete File",
+      description: "Are you sure you want to delete this file? This action cannot be undone.",
+      onConfirm: async () => {
+        try {
+          const res = await fetch(`/api/files/${id}`, { method: "DELETE" });
+          if (res.ok) {
+            setFiles((prev) => prev.filter((f) => f.id !== id));
+            if (selectedFiles.has(id)) {
+              const newSelected = new Set(selectedFiles);
+              newSelected.delete(id);
+              setSelectedFiles(newSelected);
+            }
+          }
+        } catch (error) {
+          console.error(error);
+          toast("Error deleting file", { variant: "danger" });
         }
-      }
-    } catch (error) {
-      console.error(error);
-    }
+      },
+    });
+    setConfirmModalOpen(true);
   };
 
-  const handleBulkDelete = async () => {
+  const handleBulkDelete = () => {
     if (selectedFiles.size === 0) return;
-    if (
-      !confirm(`Are you sure you want to delete ${selectedFiles.size} items?`)
-    )
-      return;
+    
+    setConfirmAction({
+      title: "Delete Files",
+      description: `Are you sure you want to delete ${selectedFiles.size} items? This action cannot be undone.`,
+      onConfirm: async () => {
+        try {
+          await Promise.all(
+            Array.from(selectedFiles).map((id) =>
+              fetch(`/api/files/${id}`, { method: "DELETE" }),
+            ),
+          );
 
-    try {
-      await Promise.all(
-        Array.from(selectedFiles).map((id) =>
-          fetch(`/api/files/${id}`, { method: "DELETE" }),
-        ),
-      );
-
-      setFiles(files.filter((f) => !selectedFiles.has(f.id)));
-      setSelectedFiles(new Set());
-    } catch (error) {
-      console.error(error);
-      alert("Error deleting some files");
-    }
+          setFiles((prev) => prev.filter((f) => !selectedFiles.has(f.id)));
+          setSelectedFiles(new Set());
+        } catch (error) {
+          console.error(error);
+          toast("Error deleting some files", { variant: "danger" });
+        }
+      },
+    });
+    setConfirmModalOpen(true);
   };
 
   const toggleSelection = (id: string) => {
@@ -257,9 +278,15 @@ export default function Dashboard() {
   };
 
   const handleActionRequest = async (
-    type: "download" | "preview",
+    type: "download" | "preview" | "edit",
     file: FileData,
   ) => {
+    if (type === "edit") {
+      setFileToEdit(file);
+      setEditModalOpen(true);
+      return;
+    }
+
     try {
       const res = await fetch(`/api/files/${file.id}/request-access`, {
         method: "POST",
@@ -275,11 +302,29 @@ export default function Dashboard() {
           setPreviewModalOpen(true);
         }
       } else {
-        alert("Failed to get file access token");
+        toast("Failed to get file access token", { variant: "danger" });
       }
     } catch (error) {
       console.error(error);
-      alert("Error requesting file access");
+      toast("Error requesting file access", { variant: "danger" });
+    }
+  };
+
+  const handleEditFile = async (id: string, newName: string, newUploader: string) => {
+    try {
+      const res = await fetch(`/api/files/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ originalName: newName, uploaderName: newUploader })
+      });
+      if (res.ok) {
+        await fetchFiles();
+        toast("File updated successfully");
+      } else {
+        toast("Failed to update file", { variant: "danger" });
+      }
+    } catch (err) {
+      toast("Error updating file", { variant: "danger" });
     }
   };
 
@@ -315,11 +360,11 @@ export default function Dashboard() {
           />
 
           {error ? (
-            <div className="text-center py-20 border border-red-500/20 rounded-3xl bg-red-500/5">
-              <div className="w-16 h-16 rounded-full bg-red-500/20 flex items-center justify-center mx-auto mb-4">
-                <Trash2 className="w-8 h-8 text-red-400" />
+            <div className="text-center py-20 border border-white/20 rounded-3xl bg-white/5">
+              <div className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center mx-auto mb-4">
+                <Trash2 className="w-8 h-8 text-white" />
               </div>
-              <h3 className="text-xl font-semibold text-red-400 mb-2">
+              <h3 className="text-xl font-semibold text-white mb-2">
                 Connection Error
               </h3>
               <p className="text-gray-400 mb-6 max-w-md mx-auto">{error}</p>
@@ -336,7 +381,7 @@ export default function Dashboard() {
             </div>
           ) : loading ? (
             <div className="flex justify-center py-20">
-              <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
+              <Loader2 className="w-8 h-8 animate-spin text-white" />
             </div>
           ) : files.length === 0 ? (
             <div className="text-center py-20 border border-white/5 rounded-3xl bg-white/[0.02]">
@@ -371,6 +416,24 @@ export default function Dashboard() {
         isOpen={previewModalOpen}
         previewUrl={previewUrl}
         onClose={() => setPreviewModalOpen(false)}
+      />
+
+      <ConfirmModal
+        isOpen={confirmModalOpen}
+        onOpenChange={setConfirmModalOpen}
+        title={confirmAction?.title || ""}
+        description={confirmAction?.description || ""}
+        onConfirm={() => {
+          if (confirmAction?.onConfirm) confirmAction.onConfirm();
+        }}
+        confirmText="Delete"
+      />
+
+      <EditModal
+        isOpen={editModalOpen}
+        onOpenChange={setEditModalOpen}
+        file={fileToEdit}
+        onSave={handleEditFile}
       />
     </div>
   );

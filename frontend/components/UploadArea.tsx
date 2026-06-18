@@ -1,5 +1,4 @@
 import { useRef } from "react";
-import { motion } from "framer-motion";
 import { CloudUpload } from "lucide-react";
 
 type UploadAreaProps = {
@@ -27,16 +26,12 @@ export function UploadArea({
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="mb-12"
-    >
+    <div className="mb-12">
       <div
-        className={`relative group rounded-3xl border-2 border-dashed transition-all duration-300 ${
+        className={`relative rounded-lg border transition-colors ${
           dragActive
-            ? "border-indigo-500 bg-indigo-500/10"
-            : "border-white/10 bg-white/5 hover:bg-white/10 hover:border-white/20"
+            ? "border-white bg-[#1a1a1a]"
+            : "border-[#222222] bg-[#111111] hover:bg-[#151515] hover:border-[#333333]"
         }`}
         onDragEnter={onDragEnter}
         onDragLeave={onDragLeave}
@@ -50,22 +45,20 @@ export function UploadArea({
           className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
           onChange={handleChange}
         />
-        <div className="py-20 px-10 text-center flex flex-col items-center justify-center">
-          <div
-            className={`w-20 h-20 rounded-full mb-6 flex items-center justify-center transition-transform duration-300 ${dragActive ? "scale-110 bg-indigo-500/20" : "bg-white/5 group-hover:scale-110"}`}
-          >
+        <div className="py-12 sm:py-20 px-6 sm:px-10 text-center flex flex-col items-center justify-center">
+          <div className="mb-4">
             <CloudUpload
-              className={`w-10 h-10 ${dragActive ? "text-indigo-400" : "text-gray-400"}`}
+              className={`w-8 h-8 ${dragActive ? "text-white" : "text-gray-400"}`}
             />
           </div>
-          <h3 className="text-2xl font-semibold mb-2">
-            Drag & Drop your files here
+          <h3 className="text-lg font-medium text-white mb-1">
+            Upload files
           </h3>
-          <p className="text-gray-500">
-            or click to browse from your computer
+          <p className="text-sm text-gray-500">
+            Drag and drop or click to browse
           </p>
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 }

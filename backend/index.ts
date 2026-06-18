@@ -57,14 +57,15 @@ const app = new Elysia()
   .get("/", () => "Keep Files API")
   .get("/health", () => ({ status: "ok" }))
   .onError(({ code, error, set, request }) => {
+    const err = error as Error;
     const timestamp = new Date().toISOString();
-    const logMsg = `[${timestamp}] [API Error - ${code}] ${request.method} ${request.url}\n${error.message}\n${error.stack || ''}\n----------------------------------------\n`;
+    const logMsg = `[${timestamp}] [API Error - ${code}] ${request.method} ${request.url}\n${err.message}\n${err.stack || ''}\n----------------------------------------\n`;
     
     console.error(logMsg);
     // Write to error.log
-    appendFile(path.join(process.cwd(), "error.log"), logMsg).catch(err => console.error("Failed to write to error.log", err));
+    appendFile(path.join(process.cwd(), "error.log"), logMsg).catch(e => console.error("Failed to write to error.log", e));
     
-    if (error.message?.includes("Can't reach database") || error.message?.includes("Invalid `prisma.") || error.name === "PrismaClientInitializationError") {
+    if (err.message?.includes("Can't reach database") || err.message?.includes("Invalid `prisma.") || err.name === "PrismaClientInitializationError") {
       set.status = 503;
       return { 
         error: "Database Connection Error", 
@@ -80,7 +81,7 @@ const app = new Elysia()
     set.status = 500;
     return {
       error: "Internal Server Error",
-      message: error.message || "An unexpected error occurred"
+      message: err.message || "An unexpected error occurred"
     };
   })
   .post("/auth/verify", ({ isAuthenticated }) => ({ valid: isAuthenticated }))
@@ -155,6 +156,44 @@ const app = new Elysia()
     });
 
     return { success: true, message: "File deleted successfully" };
+  })
+  .patch("/files/:id", async ({ params, body }) => {
+    const fileId = params.id;
+    const { originalName, uploaderName } = body as { originalName?: string, uploaderName?: string };
+    
+    const file = await prisma.file.findUnique({
+      where: { id: fileId },
+    });
+
+    if (!file) {
+      throw new Error("File not found");
+    }
+
+    let finalOriginalName = originalName;
+    if (originalName) {
+      const extMatch = file.originalName.match(/\.[^.]+$/);
+      if (extMatch) {
+        const ext = extMatch[0];
+        if (!originalName.endsWith(ext)) {
+          finalOriginalName = `${originalName}${ext}`;
+        }
+      }
+    }
+
+    const updatedFile = await prisma.file.update({
+      where: { id: fileId },
+      data: {
+        ...(originalName && { originalName: finalOriginalName }),
+        ...(uploaderName !== undefined && { uploaderName }),
+      },
+    });
+
+    return updatedFile;
+  }, {
+    body: t.Object({
+      originalName: t.Optional(t.String()),
+      uploaderName: t.Optional(t.String()),
+    })
   })
   .post("/files/:id/request-access", async ({ params, set }) => {
     const fileId = params.id;
