@@ -10,7 +10,7 @@ const prisma = new PrismaClient();
 
 const UPLOAD_DIR =
   process.env.UPLOAD_DIR || path.join(process.cwd(), "uploads");
-const ACCESS_KEY = process.env.ACCESS_KEY || "default-key";
+const ACCESS_KEY = (process.env.ACCESS_KEY || "default-key").trim();
 
 // Store temporary short-lived tokens for file access
 const tempTokens = new Map<string, { fileId: string; expiresAt: number }>();
@@ -134,7 +134,7 @@ const app = new Elysia()
   .post(
     "/auth/login",
     async ({ body, jwt, cookie, set }) => {
-      if (body.keyword === ACCESS_KEY) {
+      if (body.keyword.trim() === ACCESS_KEY) {
         const token = await jwt.sign({
           authorized: true,
           role: "admin",
