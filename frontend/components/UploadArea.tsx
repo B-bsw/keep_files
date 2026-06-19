@@ -26,7 +26,7 @@ export function UploadArea({
   };
 
   return (
-    <div className="mb-12">
+    <div className="mb-12 select-none">
       <div
         className={`relative rounded-lg border-2 border-dashed transition-colors ${
             dragActive
