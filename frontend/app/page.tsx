@@ -103,6 +103,35 @@ export default function Dashboard() {
       .catch(console.error);
   }, []);
 
+  useEffect(() => {
+    if (!appConfig) return;
+
+    const wsUrl = appConfig.apiUrl.replace(/^http/, "ws") + "/ws";
+    const ws = new WebSocket(wsUrl);
+
+    ws.onmessage = (event) => {
+      try {
+        const message = JSON.parse(event.data);
+        if (message.type === 'FILE_ADDED') {
+          setFiles((prev) => {
+            if (prev.some(f => f.id === message.data.id)) return prev;
+            return [message.data, ...prev];
+          });
+        } else if (message.type === 'FILE_DELETED') {
+          setFiles((prev) => prev.filter((f) => f.id !== message.data.id));
+        } else if (message.type === 'FILE_UPDATED') {
+          setFiles((prev) => prev.map((f) => f.id === message.data.id ? message.data : f));
+        }
+      } catch (e) {
+        console.error("Error parsing WebSocket message:", e);
+      }
+    };
+
+    return () => {
+      ws.close();
+    };
+  }, [appConfig]);
+
   // We will handle cleanup individually inside the functions so they don't block each other
 
   const handleLogout = async () => {
@@ -207,7 +236,7 @@ export default function Dashboard() {
       ? `${appConfig.apiUrl}/files/upload`
       : "/api/files/upload";
     xhr.open("POST", uploadUrl);
-    
+
     xhr.withCredentials = true;
 
     if (appConfig?.accessKey) {
@@ -484,7 +513,7 @@ export default function Dashboard() {
             <div className="hidden md:flex items-center gap-3 md:gap-4 px-3 md:px-4 py-2 mt-4 mb-2 text-[10px] font-semibold text-gray-500 uppercase tracking-widest border-b border-gray-200 dark:border-white/5 select-none">
               <div className="w-4 h-4 md:w-5 md:h-5 shrink-0" />
               <div className="flex-1 min-w-0 flex items-center justify-between gap-1 md:gap-4">
-                <div 
+                <div
                   className="flex-1 min-w-0 flex items-center gap-1 cursor-pointer hover:text-gray-900 dark:hover:text-white transition-colors"
                   onClick={() => setSortOption(sortOption === "name-desc" ? "name-asc" : "name-desc")}
                 >
@@ -496,7 +525,7 @@ export default function Dashboard() {
                 <div className="hidden md:flex shrink-0 w-100 items-center gap-4">
                   <div className="w-16">Type</div>
                   <div className="flex-1">Uploader</div>
-                  <div 
+                  <div
                     className="w-20 flex justify-end items-center gap-1 cursor-pointer hover:text-gray-900 dark:hover:text-white transition-colors"
                     onClick={() => setSortOption(sortOption === "size-desc" ? "size-asc" : "size-desc")}
                   >
@@ -505,7 +534,7 @@ export default function Dashboard() {
                       sortOption.endsWith("desc") ? <ArrowDown className="w-3 h-3" /> : <ArrowUp className="w-3 h-3" />
                     )}
                   </div>
-                  <div 
+                  <div
                     className="w-32 flex justify-end items-center gap-1 cursor-pointer hover:text-gray-900 dark:hover:text-white transition-colors"
                     onClick={() => setSortOption(sortOption === "date-desc" ? "date-asc" : "date-desc")}
                   >

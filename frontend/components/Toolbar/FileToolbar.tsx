@@ -49,11 +49,11 @@ export function FileToolbar({
   setSortOption,
 }: FileToolbarProps) {
   return (
-    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 select-none">
       <div className="flex flex-wrap items-center gap-4">
         <h2 className="text-xl sm:text-2xl font-semibold flex items-center gap-3">
           Your Files
-          <span className="text-sm font-normal text-gray-600 dark:text-gray-500 bg-gray-100 dark:bg-[#111111] border border-gray-200 dark:border-[#222222] px-3 py-1 rounded-lg">
+          <span className="text-sm font-normal  text-gray-600 dark:text-gray-500 bg-gray-100 dark:bg-[#111111] border border-gray-200 dark:border-[#222222] px-3 py-1 rounded-lg">
             {filesCount}
           </span>
         </h2>
