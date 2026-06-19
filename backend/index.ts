@@ -41,6 +41,11 @@ const app = new Elysia()
       exp: '30d'
     })
   )
+  .ws('/ws', {
+    open(ws) {
+      ws.subscribe('files');
+    }
+  })
   .derive(async ({ request, cookie: { auth }, jwt }) => {
     const authHeader = request.headers.get("x-access-key") || request.headers.get("authorization");
     let token = authHeader?.replace("Bearer ", "");
@@ -167,6 +172,8 @@ const app = new Elysia()
       },
     });
 
+    app.server?.publish('files', JSON.stringify({ type: 'FILE_ADDED', data: newFile }));
+
     return newFile;
   }, {
     body: t.Object({
@@ -200,6 +207,8 @@ const app = new Elysia()
       where: { id: fileId },
     });
 
+    app.server?.publish('files', JSON.stringify({ type: 'FILE_DELETED', data: { id: fileId } }));
+
     return { success: true, message: "File deleted successfully" };
   })
   .patch("/files/:id", async ({ params, body }) => {
@@ -232,6 +241,8 @@ const app = new Elysia()
         ...(uploaderName !== undefined && { uploaderName }),
       },
     });
+
+    app.server?.publish('files', JSON.stringify({ type: 'FILE_UPDATED', data: updatedFile }));
 
     return updatedFile;
   }, {
