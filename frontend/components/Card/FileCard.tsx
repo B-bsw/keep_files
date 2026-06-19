@@ -1,8 +1,26 @@
 import { Square, SquareCheck } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
+import { useEffect, useRef } from "react";
+import { format, render, cancel } from "timeago.js";
 import { FileData } from "../../types";
 import { formatBytes } from "../../utils";
 import { FileActionMenu } from "./FileActionMenu";
+
+function TimeAgo({ date, className }: { date: string; className?: string }) {
+  const ref = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    if (!ref.current) return;
+    ref.current.setAttribute("datetime", date);
+    render(ref.current);
+    return () => {
+      if (ref.current) cancel(ref.current);
+    };
+  }, [date]);
+  return (
+    <span ref={ref} className={className}>
+      {format(date)}
+    </span>
+  );
+}
 
 const getFileNameWithoutExtension = (fileName: string) => {
   const lastDotIndex = fileName.lastIndexOf(".");
@@ -36,14 +54,6 @@ export function FileCard({
   onActionRequest,
   onDelete,
 }: FileCardProps) {
-  const handlePreviewOrDownload = () => {
-    if (file.mimeType.startsWith("image/")) {
-      onActionRequest("preview", file);
-    } else {
-      onActionRequest("download", file);
-    }
-  };
-
   if (viewMode === "list") {
     return (
       <div
@@ -97,11 +107,10 @@ export function FileCard({
             <span className="w-20 font-mono text-right">
               {formatBytes(file.size)}
             </span>
-            <span className="w-32 font-mono text-right text-nowrap">
-              {formatDistanceToNow(new Date(file.uploadDate), {
-                addSuffix: true,
-              })}
-            </span>
+            <TimeAgo
+              date={file.uploadDate}
+              className="w-32 font-mono text-right text-nowrap"
+            />
           </div>
         </div>
 
@@ -169,11 +178,7 @@ export function FileCard({
 
         <div className="flex justify-between items-center w-full font-mono text-[10px] text-gray-600">
           <span>{formatBytes(file.size)}</span>
-          <span>
-            {formatDistanceToNow(new Date(file.uploadDate), {
-              addSuffix: true,
-            })}
-          </span>
+          <TimeAgo date={file.uploadDate} />
         </div>
       </div>
     </div>
