@@ -2,7 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, File as FileIcon, Trash2, ArrowDown, ArrowUp } from "lucide-react";
+import {
+  Loader2,
+  File as FileIcon,
+  Trash2,
+  ArrowDown,
+  ArrowUp,
+} from "lucide-react";
 import { FileData, UploadTask, DeleteTask, SortOption } from "../types";
 import { Header } from "../components/Header/Header";
 import { UploadArea } from "../components/UploadArea";
@@ -30,6 +36,7 @@ export default function Dashboard() {
   const [appConfig, setAppConfig] = useState<{
     apiUrl: string;
     accessKey: string;
+    auth?: string;
   } | null>(null);
 
   const [confirmModalOpen, setConfirmModalOpen] = useState(false);
@@ -106,21 +113,28 @@ export default function Dashboard() {
   useEffect(() => {
     if (!appConfig) return;
 
-    const wsUrl = appConfig.apiUrl.replace(/^http/, "ws") + "/ws";
+    let wsUrl = appConfig.apiUrl.replace(/^http/, "ws") + "/ws";
+    const token = appConfig.auth || appConfig.accessKey;
+    if (token) {
+      wsUrl += `?key=${token}`;
+    }
+
     const ws = new WebSocket(wsUrl);
 
     ws.onmessage = (event) => {
       try {
         const message = JSON.parse(event.data);
-        if (message.type === 'FILE_ADDED') {
+        if (message.type === "FILE_ADDED") {
           setFiles((prev) => {
-            if (prev.some(f => f.id === message.data.id)) return prev;
+            if (prev.some((f) => f.id === message.data.id)) return prev;
             return [message.data, ...prev];
           });
-        } else if (message.type === 'FILE_DELETED') {
+        } else if (message.type === "FILE_DELETED") {
           setFiles((prev) => prev.filter((f) => f.id !== message.data.id));
-        } else if (message.type === 'FILE_UPDATED') {
-          setFiles((prev) => prev.map((f) => f.id === message.data.id ? message.data : f));
+        } else if (message.type === "FILE_UPDATED") {
+          setFiles((prev) =>
+            prev.map((f) => (f.id === message.data.id ? message.data : f)),
+          );
         }
       } catch (e) {
         console.error("Error parsing WebSocket message:", e);
@@ -239,8 +253,9 @@ export default function Dashboard() {
 
     xhr.withCredentials = true;
 
-    if (appConfig?.accessKey) {
-      xhr.setRequestHeader("x-access-key", appConfig.accessKey);
+    const token = appConfig?.auth || appConfig?.accessKey;
+    if (token) {
+      xhr.setRequestHeader("Authorization", `Bearer ${token}`);
     }
 
     xhr.send(formData);
@@ -515,33 +530,54 @@ export default function Dashboard() {
               <div className="flex-1 min-w-0 flex items-center justify-between gap-1 md:gap-4">
                 <div
                   className="flex-1 min-w-0 flex items-center gap-1 cursor-pointer hover:text-gray-900 dark:hover:text-white transition-colors"
-                  onClick={() => setSortOption(sortOption === "name-desc" ? "name-asc" : "name-desc")}
+                  onClick={() =>
+                    setSortOption(
+                      sortOption === "name-desc" ? "name-asc" : "name-desc",
+                    )
+                  }
                 >
                   Name
-                  {sortOption.startsWith("name") && (
-                    sortOption.endsWith("desc") ? <ArrowDown className="w-3 h-3" /> : <ArrowUp className="w-3 h-3" />
-                  )}
+                  {sortOption.startsWith("name") &&
+                    (sortOption.endsWith("desc") ? (
+                      <ArrowDown className="w-3 h-3" />
+                    ) : (
+                      <ArrowUp className="w-3 h-3" />
+                    ))}
                 </div>
                 <div className="hidden md:flex shrink-0 w-100 items-center gap-4">
                   <div className="w-16">Type</div>
                   <div className="flex-1">Uploader</div>
                   <div
                     className="w-20 flex justify-end items-center gap-1 cursor-pointer hover:text-gray-900 dark:hover:text-white transition-colors"
-                    onClick={() => setSortOption(sortOption === "size-desc" ? "size-asc" : "size-desc")}
+                    onClick={() =>
+                      setSortOption(
+                        sortOption === "size-desc" ? "size-asc" : "size-desc",
+                      )
+                    }
                   >
                     Size
-                    {sortOption.startsWith("size") && (
-                      sortOption.endsWith("desc") ? <ArrowDown className="w-3 h-3" /> : <ArrowUp className="w-3 h-3" />
-                    )}
+                    {sortOption.startsWith("size") &&
+                      (sortOption.endsWith("desc") ? (
+                        <ArrowDown className="w-3 h-3" />
+                      ) : (
+                        <ArrowUp className="w-3 h-3" />
+                      ))}
                   </div>
                   <div
                     className="w-32 flex justify-end items-center gap-1 cursor-pointer hover:text-gray-900 dark:hover:text-white transition-colors"
-                    onClick={() => setSortOption(sortOption === "date-desc" ? "date-asc" : "date-desc")}
+                    onClick={() =>
+                      setSortOption(
+                        sortOption === "date-desc" ? "date-asc" : "date-desc",
+                      )
+                    }
                   >
                     Date
-                    {sortOption.startsWith("date") && (
-                      sortOption.endsWith("desc") ? <ArrowDown className="w-3 h-3" /> : <ArrowUp className="w-3 h-3" />
-                    )}
+                    {sortOption.startsWith("date") &&
+                      (sortOption.endsWith("desc") ? (
+                        <ArrowDown className="w-3 h-3" />
+                      ) : (
+                        <ArrowUp className="w-3 h-3" />
+                      ))}
                   </div>
                 </div>
               </div>
@@ -557,7 +593,9 @@ export default function Dashboard() {
               <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
                 Connection Error
               </h3>
-              <p className="text-gray-500 dark:text-gray-400 mb-6 max-w-md mx-auto">{error}</p>
+              <p className="text-gray-500 dark:text-gray-400 mb-6 max-w-md mx-auto">
+                {error}
+              </p>
               <Button
                 onPress={() => {
                   setLoading(true);
@@ -576,7 +614,9 @@ export default function Dashboard() {
           ) : files.length === 0 ? (
             <div className="text-center py-20 border border-dashed border-gray-200 dark:border-white/5 rounded-3xl bg-[#F5FEFD]/50 dark:bg-white/2">
               <FileIcon className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
-              <p className="text-xl text-gray-500 dark:text-gray-400">No files uploaded yet.</p>
+              <p className="text-xl text-gray-500 dark:text-gray-400">
+                No files uploaded yet.
+              </p>
             </div>
           ) : (
             <div
