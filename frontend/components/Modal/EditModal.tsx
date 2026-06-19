@@ -27,8 +27,10 @@ export function EditModal({
     }
   }, [file, isOpen]);
 
+  const hasChanges = file ? name !== file.originalName || uploader !== (file.uploaderName || "") : false;
+
   const handleSave = async () => {
-    if (!file) return;
+    if (!file || !hasChanges) return;
     setIsSubmitting(true);
     try {
       await onSave(file.id, name, uploader || "anonymous");
@@ -82,7 +84,8 @@ export function EditModal({
               <Button
                 onPress={handleSave}
                 isPending={isSubmitting}
-                className="bg-gray-900 dark:bg-white text-white dark:text-black hover:bg-gray-800 dark:hover:bg-white/90 rounded-lg"
+                isDisabled={!hasChanges}
+                className="bg-gray-900 dark:bg-white text-white dark:text-black hover:bg-gray-800 dark:hover:bg-white/90 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg"
               >
                 {isSubmitting ? (
                   <LoaderCircle className="animate-spin-fast" />
