@@ -8,11 +8,12 @@ import path from "path";
 
 const prisma = new PrismaClient();
 
-const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(process.cwd(), "uploads");
+const UPLOAD_DIR =
+  process.env.UPLOAD_DIR || path.join(process.cwd(), "uploads");
 const ACCESS_KEY = process.env.ACCESS_KEY || "default-key";
 
 // Store temporary short-lived tokens for file access
-const tempTokens = new Map<string, { fileId: string, expiresAt: number }>();
+const tempTokens = new Map<string, { fileId: string; expiresAt: number }>();
 
 // Cleanup expired tokens periodically
 setInterval(() => {
@@ -30,24 +31,28 @@ if (!existsSync(UPLOAD_DIR)) {
 }
 
 const app = new Elysia()
-  .use(cors({
-    credentials: true,
-    allowedHeaders: ['Content-Type', 'Authorization', 'x-access-key']
-  }))
+  .use(
+    cors({
+      credentials: true,
+      allowedHeaders: ["Content-Type", "Authorization", "x-access-key"],
+    }),
+  )
   .use(
     jwt({
-      name: 'jwt',
-      secret: process.env.JWT_SECRET || 'super-secret',
-      exp: '30d'
-    })
+      name: "jwt",
+      secret: process.env.JWT_SECRET || "super-secret",
+      exp: "30d",
+    }),
   )
-  .ws('/ws', {
+  .ws("/ws", {
     open(ws) {
-      ws.subscribe('files');
-    }
+      ws.subscribe("files");
+    },
   })
   .derive(async ({ request, cookie: { auth }, jwt }) => {
-    const authHeader = request.headers.get("x-access-key") || request.headers.get("authorization");
+    const authHeader =
+      request.headers.get("x-access-key") ||
+      request.headers.get("authorization");
     let token = authHeader?.replace("Bearer ", "");
 
     if (!token) {
@@ -59,17 +64,26 @@ const app = new Elysia()
 
     if (token === ACCESS_KEY) {
       isAuthenticated = true;
-    } else if (auth?.value) {
-      const profile = await jwt.verify(auth.value as string);
-      if (profile) {
-        isAuthenticated = true;
+    } else {
+      const jwtToken = auth?.value || token;
+      if (jwtToken) {
+        const profile = await jwt.verify(jwtToken as string);
+        if (profile) {
+          isAuthenticated = true;
+        }
       }
     }
 
     return { isAuthenticated };
   })
   .onBeforeHandle(({ isAuthenticated, set, path }) => {
-    if (path === "/" || path === "/health" || path.endsWith("/content") || path === "/auth/login") return;
+    if (
+      path === "/" ||
+      path === "/health" ||
+      path.endsWith("/content") ||
+      path === "/auth/login"
+    )
+      return;
 
     if (!isAuthenticated) {
       set.status = 401;
@@ -81,56 +95,70 @@ const app = new Elysia()
   .onError(({ code, error, set, request }) => {
     const err = error as Error;
     const timestamp = new Date().toISOString();
-    const logMsg = `[${timestamp}] [API Error - ${code}] ${request.method} ${request.url}\n${err.message}\n${err.stack || ''}\n----------------------------------------\n`;
+    const logMsg = `[${timestamp}] [API Error - ${code}] ${request.method} ${request.url}\n${err.message}\n${err.stack || ""}\n----------------------------------------\n`;
 
     console.error(logMsg);
     // Write to error.log
-    appendFile(path.join(process.cwd(), "error.log"), logMsg).catch(e => console.error("Failed to write to error.log", e));
+    appendFile(path.join(process.cwd(), "error.log"), logMsg).catch((e) =>
+      console.error("Failed to write to error.log", e),
+    );
 
-    if (err.message?.includes("Can't reach database") || err.message?.includes("Invalid `prisma.") || err.name === "PrismaClientInitializationError") {
+    if (
+      err.message?.includes("Can't reach database") ||
+      err.message?.includes("Invalid `prisma.") ||
+      err.name === "PrismaClientInitializationError"
+    ) {
       set.status = 503;
       return {
         error: "Database Connection Error",
-        message: "Unable to connect to the database. Please ensure the database service is running."
+        message:
+          "Unable to connect to the database. Please ensure the database service is running.",
       };
     }
 
-    if (code === 'NOT_FOUND') {
+    if (code === "NOT_FOUND") {
       set.status = 404;
-      return { error: "Not Found", message: "The requested resource could not be found." };
+      return {
+        error: "Not Found",
+        message: "The requested resource could not be found.",
+      };
     }
 
     set.status = 500;
     return {
       error: "Internal Server Error",
-      message: err.message || "An unexpected error occurred"
+      message: err.message || "An unexpected error occurred",
     };
   })
   .post("/auth/verify", ({ isAuthenticated }) => ({ valid: isAuthenticated }))
-  .post("/auth/login", async ({ body, jwt, cookie, set }) => {
-    if (body.keyword === ACCESS_KEY) {
-      const token = await jwt.sign({
-        authorized: true,
-        role: "admin"
-      });
-      if (!cookie.auth) cookie.auth = {} as any;
-      cookie.auth!.set({
-        value: token,
-        httpOnly: true,
-        maxAge: 3 * 86400,
-        path: '/',
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax'
-      });
-      return { success: true };
-    }
-    set.status = 401;
-    return { error: "Invalid keyword" };
-  }, {
-    body: t.Object({
-      keyword: t.String()
-    })
-  })
+  .post(
+    "/auth/login",
+    async ({ body, jwt, cookie, set }) => {
+      if (body.keyword === ACCESS_KEY) {
+        const token = await jwt.sign({
+          authorized: true,
+          role: "admin",
+        });
+        if (!cookie.auth) cookie.auth = {} as any;
+        cookie.auth!.set({
+          value: token,
+          httpOnly: true,
+          maxAge: 3 * 86400,
+          path: "/",
+          secure: process.env.NODE_ENV === "production",
+          sameSite: "lax",
+        });
+        return { success: true };
+      }
+      set.status = 401;
+      return { error: "Invalid keyword" };
+    },
+    {
+      body: t.Object({
+        keyword: t.String(),
+      }),
+    },
+  )
   .post("/auth/logout", ({ cookie }) => {
     if (cookie.auth) cookie.auth.remove();
     return { success: true };
@@ -141,46 +169,53 @@ const app = new Elysia()
     });
     return files;
   })
-  .post("/files/upload", async ({ body }) => {
-    const file = body.file as File;
-    const uploaderName = body.uploaderName as string | undefined;
+  .post(
+    "/files/upload",
+    async ({ body }) => {
+      const file = body.file as File;
+      const uploaderName = body.uploaderName as string | undefined;
 
-    if (!file) {
-      throw new Error("No file uploaded");
-    }
+      if (!file) {
+        throw new Error("No file uploaded");
+      }
 
-    const originalName = file.name;
-    const mimeType = file.type;
-    const size = file.size;
+      const originalName = file.name;
+      const mimeType = file.type;
+      const size = file.size;
 
-    // Generate unique object key
-    const ext = originalName.split('.').pop() || '';
-    const objectKey = `${crypto.randomUUID()}-${Date.now()}.${ext}`;
-    const filePath = path.join(UPLOAD_DIR, objectKey);
+      // Generate unique object key
+      const ext = originalName.split(".").pop() || "";
+      const objectKey = `${crypto.randomUUID()}-${Date.now()}.${ext}`;
+      const filePath = path.join(UPLOAD_DIR, objectKey);
 
-    // Save to local file system
-    await Bun.write(filePath, file);
+      // Save to local file system
+      await Bun.write(filePath, file);
 
-    // Save to Prisma
-    const newFile = await prisma.file.create({
-      data: {
-        originalName,
-        objectKey,
-        size,
-        mimeType,
-        uploaderName: uploaderName || null,
-      },
-    });
+      // Save to Prisma
+      const newFile = await prisma.file.create({
+        data: {
+          originalName,
+          objectKey,
+          size,
+          mimeType,
+          uploaderName: uploaderName || null,
+        },
+      });
 
-    app.server?.publish('files', JSON.stringify({ type: 'FILE_ADDED', data: newFile }));
+      app.server?.publish(
+        "files",
+        JSON.stringify({ type: "FILE_ADDED", data: newFile }),
+      );
 
-    return newFile;
-  }, {
-    body: t.Object({
-      file: t.File(),
-      uploaderName: t.Optional(t.String()),
-    })
-  })
+      return newFile;
+    },
+    {
+      body: t.Object({
+        file: t.File(),
+        uploaderName: t.Optional(t.String()),
+      }),
+    },
+  )
   .delete("/files/:id", async ({ params }) => {
     const fileId = params.id;
 
@@ -207,50 +242,63 @@ const app = new Elysia()
       where: { id: fileId },
     });
 
-    app.server?.publish('files', JSON.stringify({ type: 'FILE_DELETED', data: { id: fileId } }));
+    app.server?.publish(
+      "files",
+      JSON.stringify({ type: "FILE_DELETED", data: { id: fileId } }),
+    );
 
     return { success: true, message: "File deleted successfully" };
   })
-  .patch("/files/:id", async ({ params, body }) => {
-    const fileId = params.id;
-    const { originalName, uploaderName } = body as { originalName?: string, uploaderName?: string };
+  .patch(
+    "/files/:id",
+    async ({ params, body }) => {
+      const fileId = params.id;
+      const { originalName, uploaderName } = body as {
+        originalName?: string;
+        uploaderName?: string;
+      };
 
-    const file = await prisma.file.findUnique({
-      where: { id: fileId },
-    });
+      const file = await prisma.file.findUnique({
+        where: { id: fileId },
+      });
 
-    if (!file) {
-      throw new Error("File not found");
-    }
+      if (!file) {
+        throw new Error("File not found");
+      }
 
-    let finalOriginalName = originalName;
-    if (originalName) {
-      const extMatch = file.originalName.match(/\.[^.]+$/);
-      if (extMatch) {
-        const ext = extMatch[0];
-        if (!originalName.endsWith(ext)) {
-          finalOriginalName = `${originalName}${ext}`;
+      let finalOriginalName = originalName;
+      if (originalName) {
+        const extMatch = file.originalName.match(/\.[^.]+$/);
+        if (extMatch) {
+          const ext = extMatch[0];
+          if (!originalName.endsWith(ext)) {
+            finalOriginalName = `${originalName}${ext}`;
+          }
         }
       }
-    }
 
-    const updatedFile = await prisma.file.update({
-      where: { id: fileId },
-      data: {
-        ...(originalName && { originalName: finalOriginalName }),
-        ...(uploaderName !== undefined && { uploaderName }),
-      },
-    });
+      const updatedFile = await prisma.file.update({
+        where: { id: fileId },
+        data: {
+          ...(originalName && { originalName: finalOriginalName }),
+          ...(uploaderName !== undefined && { uploaderName }),
+        },
+      });
 
-    app.server?.publish('files', JSON.stringify({ type: 'FILE_UPDATED', data: updatedFile }));
+      app.server?.publish(
+        "files",
+        JSON.stringify({ type: "FILE_UPDATED", data: updatedFile }),
+      );
 
-    return updatedFile;
-  }, {
-    body: t.Object({
-      originalName: t.Optional(t.String()),
-      uploaderName: t.Optional(t.String()),
-    })
-  })
+      return updatedFile;
+    },
+    {
+      body: t.Object({
+        originalName: t.Optional(t.String()),
+        uploaderName: t.Optional(t.String()),
+      }),
+    },
+  )
   .post("/files/:id/request-access", async ({ params, set }) => {
     const fileId = params.id;
 
@@ -281,7 +329,11 @@ const app = new Elysia()
     const { token } = query;
     const tokenData = tempTokens.get(token as string);
 
-    if (!tokenData || tokenData.fileId !== params.id || Date.now() > tokenData.expiresAt) {
+    if (
+      !tokenData ||
+      tokenData.fileId !== params.id ||
+      Date.now() > tokenData.expiresAt
+    ) {
       set.status = 401;
       return { error: "Invalid or expired token" };
     }
@@ -301,12 +353,15 @@ const app = new Elysia()
       return { error: "File physical content not found" };
     }
 
-    set.headers["Content-Disposition"] = `attachment; filename="${encodeURIComponent(file.originalName)}"`;
+    set.headers["Content-Disposition"] =
+      `attachment; filename="${encodeURIComponent(file.originalName)}"`;
     set.headers["Content-Type"] = file.mimeType;
 
     return Bun.file(filePath);
   });
 
-app.listen(3001);
+app.listen({ port: Number(process.env.PORT) || 3001, hostname: "0.0.0.0" });
 
-console.log(`🦊 Backend is running at ${app.server?.hostname}:${app.server?.port}`);
+console.log(
+  `🦊 Backend is running at ${app.server?.hostname}:${app.server?.port}`,
+);
