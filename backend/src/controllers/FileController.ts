@@ -2,8 +2,6 @@ import { Elysia, t } from "elysia";
 import { FileService } from "../services/FileService";
 import { TokenService } from "../services/TokenService";
 import { config } from "../config";
-import path from "path";
-import { existsSync } from "fs";
 
 const serializeFile = (f: { size: bigint | number; [key: string]: unknown }) => ({
   ...f,
@@ -81,21 +79,20 @@ export const fileController = (
 
       const ext = fileName.split(".").pop() || "";
       const objectKey = `${crypto.randomUUID()}-${Date.now()}.${ext}`;
-      const filePath = path.join(config.uploadDir, objectKey);
 
-      // Stream directly to disk — no buffering in memory
-      const writer = Bun.file(filePath).writer();
+      const chunks: Buffer[] = [];
       let size = 0;
       for await (const chunk of request.body as unknown as AsyncIterable<Uint8Array>) {
-        writer.write(chunk);
+        chunks.push(Buffer.from(chunk));
         size += chunk.byteLength;
       }
-      await writer.end();
+      const buffer = Buffer.concat(chunks);
 
-      const newFile = serializeFile(await fileService.saveFileRecord({
-        originalName: fileName,
+      const newFile = serializeFile(await fileService.streamUpload({
         objectKey,
+        buffer,
         size,
+        originalName: fileName,
         mimeType,
         uploaderName,
       }));
@@ -194,14 +191,25 @@ export const fileController = (
         return { error: "File not found" };
       }
 
-      const filePath = path.join(config.uploadDir, file.objectKey);
-      if (!existsSync(filePath)) {
+      const exists = await fileService.objectExists(file.objectKey);
+      if (!exists) {
         set.status = 404;
-        return { error: "File physical content not found" };
+        return { error: "File content not found" };
       }
 
-      set.headers["Content-Disposition"] = `attachment; filename="${encodeURIComponent(file.originalName)}"`;
-      set.headers["Content-Type"] = file.mimeType;
+      const nodeStream = await fileService.getObjectStream(file.objectKey);
+      const webStream = new ReadableStream({
+        start(controller) {
+          nodeStream.on("data", (chunk: Buffer) => controller.enqueue(chunk));
+          nodeStream.on("end", () => controller.close());
+          nodeStream.on("error", (err) => controller.error(err));
+        },
+      });
 
-      return Bun.file(filePath);
+      return new Response(webStream, {
+        headers: {
+          "Content-Disposition": `attachment; filename="${encodeURIComponent(file.originalName)}"`,
+          "Content-Type": file.mimeType,
+        },
+      });
     });
