@@ -1,5 +1,5 @@
-const CACHE_NAME = "keep-files-v1";
-const STATIC_ASSETS = ["/", "/manifest.json", "/icons/icon-192x192.png", "/icons/icon-512x512.png"];
+const CACHE_NAME = "keep-files-v3";
+const STATIC_ASSETS = ["/manifest.json", "/icons/icon-192x192.png", "/icons/icon-512x512.png"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -22,15 +22,26 @@ self.addEventListener("fetch", (event) => {
 
   const url = new URL(event.request.url);
 
-  // Network-first for API calls
-  if (url.pathname.startsWith("/api/") || url.hostname !== self.location.hostname) {
-    event.respondWith(
-      fetch(event.request).catch(() => caches.match(event.request))
-    );
+  // Skip cross-origin requests
+  if (url.hostname !== self.location.hostname) return;
+
+  // Network-first for API calls and HTML navigation — let the server handle routing
+  if (
+    url.pathname.startsWith("/api/") ||
+    event.request.mode === "navigate" ||
+    event.request.headers.get("accept")?.includes("text/html")
+  ) {
+    event.respondWith(fetch(event.request));
     return;
   }
 
-  // Cache-first for static assets
+  // Never cache Next.js JS/CSS chunks — they have hashed names, browser HTTP cache handles them
+  if (url.pathname.startsWith("/_next/")) {
+    event.respondWith(fetch(event.request));
+    return;
+  }
+
+  // Cache-first only for public static assets (icons, manifest)
   event.respondWith(
     caches.match(event.request).then(
       (cached) => cached ?? fetch(event.request).then((response) => {

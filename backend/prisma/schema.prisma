@@ -11,8 +11,20 @@ model File {
   id           String   @id @default(uuid())
   originalName String
   objectKey    String   @unique
-  size         Int
+  size         BigInt
   mimeType     String
   uploadDate   DateTime @default(now())
   uploaderName String?
+}
+
+model UploadSession {
+  id           String   @id @default(uuid())
+  fileName     String
+  mimeType     String
+  totalSize    BigInt
+  uploadedSize BigInt   @default(0)
+  objectKey    String   @unique
+  uploaderName String?
+  createdAt    DateTime @default(now())
+  expiresAt    DateTime
 }

@@ -108,6 +108,7 @@ export default function Dashboard() {
       .then((res) => res.json())
       .then((data) => setAppConfig(data))
       .catch(console.error);
+
   }, []);
 
   useEffect(() => {
@@ -189,30 +190,41 @@ export default function Dashboard() {
       return {
         id: Math.random().toString(36).substring(7),
         file: finalFile,
+        fileName: finalFile.name,
+        fileSize: finalFile.size,
+        mimeType: finalFile.type,
         progress: 0,
-        status: "uploading",
+        status: "uploading" as const,
       };
     });
 
     setUploadTasks((prev) => [...prev, ...newTasks]);
-
-    newTasks.forEach((task) => {
-      uploadSingleFile(task);
-    });
+    newTasks.forEach((task) => uploadSingleFile(task));
   };
 
   const uploadSingleFile = (task: UploadTask) => {
+    if (!task.file) return;
+
     const formData = new FormData();
     formData.append("file", task.file);
     formData.append("uploaderName", "anonymous");
 
     const xhr = new XMLHttpRequest();
+    let lastLoaded = 0;
+    let lastTime = Date.now();
 
     xhr.upload.addEventListener("progress", (e) => {
       if (e.lengthComputable) {
-        const percent = Math.round((e.loaded / e.total) * 100);
+        const now = Date.now();
+        const dt = (now - lastTime) / 1000;
+        const speed = dt > 0 ? (e.loaded - lastLoaded) / dt : 0;
+        lastLoaded = e.loaded;
+        lastTime = now;
+        const progress = Math.round((e.loaded / e.total) * 100);
         setUploadTasks((prev) =>
-          prev.map((t) => (t.id === task.id ? { ...t, progress: percent } : t)),
+          prev.map((t) =>
+            t.id === task.id ? { ...t, progress, uploadedBytes: e.loaded, speed } : t,
+          ),
         );
       }
     });
@@ -220,9 +232,7 @@ export default function Dashboard() {
     xhr.addEventListener("load", async () => {
       if (xhr.status >= 200 && xhr.status < 300) {
         setUploadTasks((prev) =>
-          prev.map((t) =>
-            t.id === task.id ? { ...t, status: "success", progress: 100 } : t,
-          ),
+          prev.map((t) => (t.id === task.id ? { ...t, status: "success", progress: 100 } : t)),
         );
         setTimeout(() => {
           setUploadTasks((prev) => prev.filter((t) => t.id !== task.id));
@@ -232,7 +242,7 @@ export default function Dashboard() {
         setUploadTasks((prev) =>
           prev.map((t) => (t.id === task.id ? { ...t, status: "error" } : t)),
         );
-        toast(`อัปโหลดไฟล์ ${task.file.name} ไม่สำเร็จ`, { variant: "danger" });
+        toast(`อัปโหลดไฟล์ ${task.fileName} ไม่สำเร็จ`, { variant: "danger" });
       }
     });
 
@@ -240,24 +250,14 @@ export default function Dashboard() {
       setUploadTasks((prev) =>
         prev.map((t) => (t.id === task.id ? { ...t, status: "error" } : t)),
       );
-      toast(
-        `อัปโหลดไฟล์ ${task.file.name} ไม่สำเร็จ กรุณาตรวจสอบการเชื่อมต่อ`,
-        { variant: "danger" },
-      );
+      toast(`อัปโหลดไฟล์ ${task.fileName} ไม่สำเร็จ กรุณาตรวจสอบการเชื่อมต่อ`, { variant: "danger" });
     });
 
-    const uploadUrl = appConfig
-      ? `${appConfig.apiUrl}/files/upload`
-      : "/api/files/upload";
+    const uploadUrl = appConfig ? `${appConfig.apiUrl}/files/upload` : "/api/files/upload";
     xhr.open("POST", uploadUrl);
-
     xhr.withCredentials = true;
-
     const token = appConfig?.auth || appConfig?.accessKey;
-    if (token) {
-      xhr.setRequestHeader("Authorization", `Bearer ${token}`);
-    }
-
+    if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
     xhr.send(formData);
   };
 

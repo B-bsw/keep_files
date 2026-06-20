@@ -15,7 +15,7 @@ const authService = new AuthService();
 const fileService = new FileService();
 const tokenService = new TokenService();
 
-const app = new Elysia()
+const app = new Elysia({ serve: { maxRequestBodySize: 10 * 1024 * 1024 * 1024 } })
   .use(
     cors({
       credentials: true,

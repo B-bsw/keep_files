@@ -10,8 +10,13 @@ export type FileData = {
 export type UploadTask = {
   id: string;
   file: File;
+  fileName: string;
+  fileSize: number;
+  mimeType: string;
   progress: number;
   status: "uploading" | "success" | "error";
+  uploadedBytes?: number;
+  speed?: number; // bytes per second
 };
 
 export type DeleteTask = {
