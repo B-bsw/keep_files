@@ -4,6 +4,21 @@ import { minioService } from "./MinioService";
 export class FileService {
   constructor() {
     minioService.ensureBucket().catch(console.error);
+    this.cleanupExpiredSessions().catch(console.error);
+    setInterval(() => this.cleanupExpiredSessions().catch(console.error), 60 * 60 * 1000);
+  }
+
+  private async cleanupExpiredSessions() {
+    const expired = await prisma.uploadSession.findMany({
+      where: { expiresAt: { lt: new Date() } },
+    });
+    for (const session of expired) {
+      await minioService.removeTempObject(session.objectKey);
+      await prisma.uploadSession.delete({ where: { id: session.id } });
+    }
+    if (expired.length > 0) {
+      console.log(`Cleaned up ${expired.length} expired upload session(s)`);
+    }
   }
 
   public async getAllFiles() {
