@@ -19,7 +19,7 @@ const app = new Elysia({ serve: { maxRequestBodySize: 10 * 1024 * 1024 * 1024 } 
   .use(
     cors({
       credentials: true,
-      allowedHeaders: ["Content-Type", "Authorization", "x-access-key", "x-file-name", "x-uploader-name"],
+      allowedHeaders: ["Content-Type", "Authorization", "x-access-key", "x-file-name", "x-uploader-name", "Content-Range"],
     }),
   )
   .use(
