@@ -38,6 +38,7 @@ export default function Dashboard() {
     accessKey: string;
     auth?: string;
   } | null>(null);
+  const appConfigRef = useRef<{ apiUrl: string; accessKey: string; auth?: string } | null>(null);
 
   const [confirmModalOpen, setConfirmModalOpen] = useState(false);
   const [confirmAction, setConfirmAction] = useState<{
@@ -114,6 +115,7 @@ export default function Dashboard() {
       .then((res) => res.json())
       .then((data) => {
         setAppConfig(data);
+        appConfigRef.current = data;
         fetchFiles(data);
       })
       .catch(() => fetchFiles());
@@ -213,10 +215,6 @@ export default function Dashboard() {
   const uploadSingleFile = (task: UploadTask) => {
     if (!task.file) return;
 
-    const formData = new FormData();
-    formData.append("file", task.file);
-    formData.append("uploaderName", "anonymous");
-
     const xhr = new XMLHttpRequest();
     xhrMap.current.set(task.id, xhr);
     let lastLoaded = 0;
@@ -269,12 +267,16 @@ export default function Dashboard() {
       setUploadTasks((prev) => prev.filter((t) => t.id !== task.id));
     });
 
-    const uploadUrl = appConfig ? `${appConfig.apiUrl}/files/upload` : "/api/files/upload";
-    xhr.open("POST", uploadUrl);
+    const cfg = appConfigRef.current;
+    const apiUrl = cfg?.apiUrl || process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+    xhr.open("POST", `${apiUrl}/files/upload/stream`);
     xhr.withCredentials = true;
-    const token = appConfig?.auth || appConfig?.accessKey;
+    const token = cfg?.auth || cfg?.accessKey;
     if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
-    xhr.send(formData);
+    xhr.setRequestHeader("X-File-Name", encodeURIComponent(task.fileName));
+    xhr.setRequestHeader("X-Uploader-Name", "anonymous");
+    xhr.setRequestHeader("Content-Type", task.mimeType || "application/octet-stream");
+    xhr.send(task.file);
   };
 
   const handleCancelUpload = (taskId: string) => {

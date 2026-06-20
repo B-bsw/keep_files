@@ -62,6 +62,18 @@ export class FileService {
     return true;
   }
 
+  public async saveFileRecord({ originalName, objectKey, size, mimeType, uploaderName }: {
+    originalName: string;
+    objectKey: string;
+    size: number;
+    mimeType: string;
+    uploaderName?: string;
+  }) {
+    return prisma.file.create({
+      data: { originalName, objectKey, size: BigInt(size), mimeType, uploaderName: uploaderName || null },
+    });
+  }
+
   public async createUploadSession(
     fileName: string,
     mimeType: string,

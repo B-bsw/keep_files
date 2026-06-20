@@ -63,6 +63,40 @@ export const fileController = (
         }),
       }
     )
+    .post("/upload/stream", async ({ request, set }) => {
+      const fileName = decodeURIComponent(request.headers.get("x-file-name") || "upload");
+      const mimeType = request.headers.get("content-type") || "application/octet-stream";
+      const uploaderName = request.headers.get("x-uploader-name") || undefined;
+
+      if (!request.body) {
+        set.status = 400;
+        return { error: "No body" };
+      }
+
+      const ext = fileName.split(".").pop() || "";
+      const objectKey = `${crypto.randomUUID()}-${Date.now()}.${ext}`;
+      const filePath = path.join(config.uploadDir, objectKey);
+
+      // Stream directly to disk — no buffering in memory
+      const writer = Bun.file(filePath).writer();
+      let size = 0;
+      for await (const chunk of request.body as unknown as AsyncIterable<Uint8Array>) {
+        writer.write(chunk);
+        size += chunk.byteLength;
+      }
+      await writer.end();
+
+      const newFile = serializeFile(await fileService.saveFileRecord({
+        originalName: fileName,
+        objectKey,
+        size,
+        mimeType,
+        uploaderName,
+      }));
+      publish("files", JSON.stringify({ type: "FILE_ADDED", data: newFile }));
+
+      return newFile;
+    })
     // Resumable upload session routes
     .post(
       "/upload/session",
@@ -109,12 +143,12 @@ export const fileController = (
         set.status = 400;
         return { error: "Invalid Content-Range format" };
       }
-      const rangeStart = parseInt(match[1]);
+      const rangeStart = parseInt(match[1]!);
 
       const chunk = new Uint8Array(await request.arrayBuffer());
       const result = await fileService.appendChunk(params.sessionId, chunk, rangeStart);
 
-      if (result.done && result.file) {
+      if (result.done && "file" in result && result.file) {
         const file = serializeFile(result.file);
         publish("files", JSON.stringify({ type: "FILE_ADDED", data: file }));
         return { done: true, file };
