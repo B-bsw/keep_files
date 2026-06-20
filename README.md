@@ -2,7 +2,7 @@
 
 A full-stack file storage application consisting of a Next.js frontend and an ElysiaJS backend API.
 
-## 🚀 Tech Stack
+## Tech Stack
 
 ### Frontend
 - **Framework:** [Next.js 16](https://nextjs.org/) (React 19)
@@ -13,87 +13,92 @@ A full-stack file storage application consisting of a Next.js frontend and an El
 ### Backend
 - **Framework:** [ElysiaJS](https://elysiajs.com/)
 - **Database ORM:** [Prisma](https://www.prisma.io/)
+- **Object Storage:** [MinIO](https://min.io/)
 - **Package Manager & Runtime:** [Bun](https://bun.sh/)
 
-## 🛠 Prerequisites
+## Prerequisites
 
-Before you begin, ensure you have the following installed on your machine:
 - [Docker](https://www.docker.com/) and Docker Compose (for running via containers)
-- [Bun](https://bun.sh/) (if you plan to run or develop locally without Docker)
+- [Bun](https://bun.sh/) (if running locally without Docker)
 
-## ⚙️ Environment Variables
+## Environment Variables
 
-Before running the project, you need to set up the environment variables.
+### Root Directory (Docker Compose)
+```bash
+cp .env.example .env
+```
 
-1. **Root Directory (Docker Compose)**
-   Copy the example file and update the values:
-   ```bash
-   cp .env.example .env
-   ```
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `DATABASE_URL` | MySQL connection string | — |
+| `PUBLIC_API_URL` | Backend public URL | `http://localhost:3001` |
+| `ACCESS_KEY` | App secret key | — |
+| `NEXT_PUBLIC_API_URL` | Frontend → API URL | `http://localhost:3001` |
+| `MINIO_ACCESS_KEY` | MinIO root user | `minioadmin` |
+| `MINIO_SECRET_KEY` | MinIO root password | `minioadmin` |
+| `MINIO_BUCKET` | Bucket name | `keep-files` |
 
-2. **Frontend**
-   Copy the example file in the `frontend` directory:
-   ```bash
-   cp frontend/.env.example frontend/.env
-   ```
-   *(Update `NEXT_PUBLIC_API_URL` if you change the API port)*
+### Backend (local dev only)
+```bash
+cp backend/.env.example backend/.env
+```
 
-3. **Backend**
-   The backend environment variables are typically provided by the root `.env` when running via Docker. If running locally, ensure the `.env` in the root is properly configured for the database URL and API keys.
+Additional vars needed when running the backend outside Docker:
 
-## 🐳 Running with Docker (Recommended)
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `MINIO_ENDPOINT` | MinIO host | `localhost` |
+| `MINIO_PORT` | MinIO port | `9000` |
+| `MINIO_USE_SSL` | Use HTTPS | `false` |
 
-You can run the entire stack (Frontend, Backend, and Database if configured) using Docker Compose.
+## Running with Docker (Recommended)
 
-1. Build and start the containers in the background:
-   ```bash
-   docker compose up -d --build
-   ```
+```bash
+docker compose up -d --build
+```
 
-2. Access the applications:
-   - **Frontend:** [http://localhost:3000](http://localhost:3000)
-   - **Backend API:** [http://localhost:3001](http://localhost:3001)
+| Service | URL |
+|---------|-----|
+| Frontend | http://localhost:3000 |
+| Backend API | http://localhost:3001 |
+| MinIO Console | http://localhost:9001 |
 
-3. To stop the containers:
-   ```bash
-   docker compose down
-   ```
+```bash
+docker compose down
+```
 
-## 💻 Running Locally (Development Mode)
+## Running Locally (Development)
 
-If you prefer to run the applications directly on your machine without Docker:
+### 1. Start MinIO
+```bash
+docker compose up minio -d
+```
 
-### 1. Backend API
-Open a terminal and navigate to the `backend` folder:
+### 2. Backend
 ```bash
 cd backend
 bun install
-
-# Apply database migrations (if required by Prisma)
 bunx prisma db push
-
-# Start the API
 bun run index.ts
 ```
 
-### 2. Frontend
-Open another terminal and navigate to the `frontend` folder:
+### 3. Frontend
 ```bash
 cd frontend
 bun install
-
-# Start the Next.js development server
 bun run dev
 ```
-The frontend will be available at [http://localhost:3000](http://localhost:3000).
 
-## 📂 Project Structure
+## Project Structure
 
 ```
 .
 ├── backend/            # ElysiaJS API
 ├── frontend/           # Next.js web application
-├── uploads/            # Directory for stored files (mapped as a Docker volume)
-├── docker-compose.yml  # Docker compose configuration
-└── README.md
+├── docker-compose.yml  # Docker Compose configuration
+└── .env.example        # Root environment variable template
 ```
+
+## File Storage
+
+Files are stored in MinIO object storage. When running via Docker Compose, data is persisted in a named volume (`minio_data`). Incomplete (resumable) uploads are stored as temporary objects prefixed with `tmp_` and are automatically cleaned up on server startup and every hour thereafter.
