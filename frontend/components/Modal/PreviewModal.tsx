@@ -87,10 +87,66 @@ function AudioSkeleton() {
   );
 }
 
-// ── PDF viewer (dynamic, no SSR) ────────────────────────────────────────────
+function SpreadsheetSkeleton() {
+  return (
+    <div className="flex flex-col h-full">
+      {/* toolbar */}
+      <div className="flex items-center gap-2 px-4 py-2 border-b border-gray-100 dark:border-white/6 shrink-0">
+        {[40, 60, 40, 50, 40].map((w, i) => (
+          <Shimmer key={i} className="h-6 rounded" style={{ width: `${w}px` }} />
+        ))}
+      </div>
+      {/* column headers */}
+      <div className="flex gap-px px-4 py-1.5 border-b border-gray-100 dark:border-white/6 bg-gray-50 dark:bg-white/3">
+        {[30, 80, 100, 90, 120, 80, 100].map((w, i) => (
+          <Shimmer key={i} className="h-4 rounded" style={{ width: `${w}px` }} />
+        ))}
+      </div>
+      {/* rows */}
+      <div className="flex-1 flex flex-col divide-y divide-gray-100 dark:divide-white/4 overflow-hidden">
+        {Array.from({ length: 10 }).map((_, r) => (
+          <div key={r} className="flex gap-px px-4 py-2 items-center">
+            {[30, 80, 100, 90, 120, 80, 100].map((w, i) => (
+              <Shimmer key={i} className="h-3 rounded" style={{ width: `${w * (r % 3 === 0 ? 1 : r % 3 === 1 ? 0.7 : 0.9)}px` }} />
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function DocxSkeleton() {
+  return (
+    <div className="w-full h-full overflow-hidden bg-gray-100 dark:bg-[#0a0a0a] flex justify-center py-6 px-4">
+      <div className="w-full max-w-3xl bg-white dark:bg-[#1a1a1a] rounded-lg p-10 flex flex-col gap-3 shadow-sm">
+        <Shimmer className="w-2/3 h-6 rounded mb-4" />
+        {[100, 90, 100, 75, 100, 85, 60, 100, 95, 80, 100, 70, 100, 88].map((w, i) => (
+          <Shimmer key={i} className="h-3 rounded" style={{ width: `${w}%` }} />
+        ))}
+        <div className="my-2" />
+        {[100, 92, 78, 100, 85, 100, 65].map((w, i) => (
+          <Shimmer key={i} className="h-3 rounded" style={{ width: `${w}%` }} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Dynamic viewers (no SSR) ────────────────────────────────────────────────
 const PdfViewer = dynamic(() => import("./PdfViewerInner"), {
   ssr: false,
   loading: () => <PdfSkeleton />,
+});
+
+const XlsxViewer = dynamic(() => import("./XlsxViewerInner"), {
+  ssr: false,
+  loading: () => <SpreadsheetSkeleton />,
+});
+
+const DocxViewer = dynamic(() => import("./DocxViewerInner"), {
+  ssr: false,
+  loading: () => <DocxSkeleton />,
 });
 
 // ── Types ───────────────────────────────────────────────────────────────────
@@ -101,7 +157,7 @@ type PreviewModalProps = {
   onClose: () => void;
 };
 
-type PreviewKind = "image" | "pdf" | "video" | "audio" | "text" | "unsupported";
+type PreviewKind = "image" | "pdf" | "xlsx" | "docx" | "video" | "audio" | "text" | "unsupported";
 
 function detectKind(file: FileData): PreviewKind {
   const mime = file.mimeType.toLowerCase();
@@ -113,13 +169,17 @@ function detectKind(file: FileData): PreviewKind {
   )
     return "image";
   if (mime === "application/pdf" || ext === "pdf") return "pdf";
+  if (["xlsx", "xls", "csv"].includes(ext) || mime.includes("spreadsheet") || mime.includes("excel"))
+    return "xlsx";
+  if (["docx", "doc"].includes(ext) || mime.includes("wordprocessingml") || mime.includes("msword"))
+    return "docx";
   if (mime.startsWith("video/") || ["mp4", "mov", "webm", "mkv", "avi"].includes(ext))
     return "video";
   if (mime.startsWith("audio/") || ["mp3", "wav", "ogg", "flac", "m4a"].includes(ext))
     return "audio";
   if (
     mime.startsWith("text/") ||
-    ["txt", "md", "csv", "json", "xml", "yaml", "yml", "log", "sh", "ts", "tsx", "js", "jsx", "css", "html"].includes(ext)
+    ["txt", "md", "json", "xml", "yaml", "yml", "log", "sh", "ts", "tsx", "js", "jsx", "css", "html"].includes(ext)
   )
     return "text";
   return "unsupported";
@@ -351,6 +411,8 @@ export function PreviewModal({ isOpen, previewUrl, file, onClose }: PreviewModal
               {!ready && <BodySkeleton />}
               {ready && kind === "image" && <ImageViewer url={previewUrl} fileName={file.originalName} />}
               {ready && kind === "pdf" && <PdfViewer url={previewUrl} />}
+              {ready && kind === "xlsx" && <XlsxViewer url={previewUrl} />}
+              {ready && kind === "docx" && <DocxViewer url={previewUrl} />}
               {ready && kind === "video" && <VideoViewer url={previewUrl} />}
               {ready && kind === "audio" && <AudioViewer url={previewUrl} fileName={file.originalName} />}
               {ready && kind === "text" && <TextViewer url={previewUrl} />}
