@@ -1,4 +1,4 @@
-import { Loader2, CloudUpload, File as FileIcon } from "lucide-react";
+import { Loader2, CloudUpload, File as FileIcon, X } from "lucide-react";
 import { UploadTask } from "../../types";
 import { ProgressBar } from "@heroui/react";
 
@@ -15,7 +15,13 @@ function formatSpeed(bytesPerSec: number): string {
   return `${(bytesPerSec / (1024 * 1024)).toFixed(1)} MB/s`;
 }
 
-export function UploadProgressList({ tasks }: { tasks: UploadTask[] }) {
+function formatEta(seconds: number): string {
+  if (seconds < 60) return `${Math.ceil(seconds)}s`;
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ${Math.ceil(seconds % 60)}s`;
+  return `${Math.floor(seconds / 3600)}h ${Math.floor((seconds % 3600) / 60)}m`;
+}
+
+export function UploadProgressList({ tasks, onCancel }: { tasks: UploadTask[]; onCancel: (id: string) => void }) {
   if (tasks.length === 0) return null;
 
   return (
@@ -41,9 +47,20 @@ export function UploadProgressList({ tasks }: { tasks: UploadTask[] }) {
                   {task.fileName}
                 </span>
               </div>
-              <span className="text-xs font-semibold shrink-0 text-gray-700 dark:text-white">
-                {task.status === "success" ? "Done" : task.status === "error" ? "Failed" : `${task.progress}%`}
-              </span>
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="text-xs font-semibold text-gray-700 dark:text-white">
+                  {task.status === "success" ? "Done" : task.status === "error" ? "Failed" : `${task.progress}%`}
+                </span>
+                {task.status === "uploading" && (
+                  <button
+                    onClick={() => onCancel(task.id)}
+                    className="p-0.5 rounded hover:bg-gray-200 dark:hover:bg-white/10 transition-colors"
+                    aria-label="Cancel upload"
+                  >
+                    <X className="w-3.5 h-3.5 text-gray-400 hover:text-gray-700 dark:hover:text-white" />
+                  </button>
+                )}
+              </div>
             </div>
             <ProgressBar aria-label="Upload progress" value={task.progress} size="sm">
               <ProgressBar.Track className="bg-gray-100 dark:bg-[#222222]">
@@ -57,7 +74,14 @@ export function UploadProgressList({ tasks }: { tasks: UploadTask[] }) {
                   : formatBytes(task.fileSize)}
               </span>
               {task.status === "uploading" && task.speed != null && task.speed > 0 && (
-                <span>{formatSpeed(task.speed)}</span>
+                <span>
+                  {formatSpeed(task.speed)}
+                  {task.uploadedBytes != null && (
+                    <span className="ml-1 opacity-70">
+                      · {formatEta((task.fileSize - task.uploadedBytes) / task.speed)} left
+                    </span>
+                  )}
+                </span>
               )}
             </div>
           </div>

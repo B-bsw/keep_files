@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 import {
   Loader2,
   File as FileIcon,
@@ -27,6 +26,7 @@ export default function Dashboard() {
   const [error, setError] = useState<string | null>(null);
   const [uploadTasks, setUploadTasks] = useState<UploadTask[]>([]);
   const [deleteTasks, setDeleteTasks] = useState<DeleteTask[]>([]);
+  const xhrMap = useRef<Map<string, XMLHttpRequest>>(new Map());
   const [dragActive, setDragActive] = useState(false);
 
   const [viewMode, setViewMode] = useState<"grid" | "list">("list");
@@ -38,6 +38,7 @@ export default function Dashboard() {
     accessKey: string;
     auth?: string;
   } | null>(null);
+  const appConfigRef = useRef<{ apiUrl: string; accessKey: string; auth?: string } | null>(null);
 
   const [confirmModalOpen, setConfirmModalOpen] = useState(false);
   const [confirmAction, setConfirmAction] = useState<{
@@ -74,17 +75,24 @@ export default function Dashboard() {
     }
   });
 
-  const router = useRouter();
 
-  const fetchFiles = async () => {
+
+  const fetchFiles = async (cfg?: { apiUrl: string; accessKey: string; auth?: string }) => {
     try {
       setError(null);
-      const res = await fetch("/api/files");
+      const config = cfg ?? appConfig;
+      const url = config ? `${config.apiUrl}/files` : "/api/files";
+      const headers: HeadersInit = {};
+      if (config) {
+        const token = config.auth || config.accessKey;
+        if (token) headers["Authorization"] = `Bearer ${token}`;
+      }
+      const res = await fetch(url, { headers, credentials: "include" });
       if (res.ok) {
         const data = await res.json();
         setFiles(data);
       } else if (res.status === 401) {
-        router.push("/login");
+        window.location.href = "/login";
       } else if (res.status === 503) {
         const errData = await res.json().catch(() => ({}));
         setError(
@@ -103,12 +111,14 @@ export default function Dashboard() {
   };
 
   useEffect(() => {
-    fetchFiles();
     fetch("/api/config")
       .then((res) => res.json())
-      .then((data) => setAppConfig(data))
-      .catch(console.error);
-
+      .then((data) => {
+        setAppConfig(data);
+        appConfigRef.current = data;
+        fetchFiles(data);
+      })
+      .catch(() => fetchFiles());
   }, []);
 
   useEffect(() => {
@@ -151,7 +161,7 @@ export default function Dashboard() {
 
   const handleLogout = async () => {
     await fetch("/api/auth/logout", { method: "POST" });
-    router.push("/login");
+    window.location.href = "/login";
   };
 
   const handleDrag = (e: React.DragEvent) => {
@@ -180,7 +190,16 @@ export default function Dashboard() {
     }
   };
 
+  const MAX_FILE_SIZE = 5 * 1024 * 1024 * 1024; // 5 GB
+
   const handleMultipleUploads = (files: File[]) => {
+    const oversized = files.filter((f) => f.size > MAX_FILE_SIZE);
+    oversized.forEach((f) =>
+      toast(`${f.name} เกินขนาดสูงสุด 5 GB`, { variant: "danger" }),
+    );
+    files = files.filter((f) => f.size <= MAX_FILE_SIZE);
+    if (files.length === 0) return;
+
     const newTasks: UploadTask[] = files.map((file) => {
       let finalFile = file;
       if (file.name.toLowerCase().endsWith(".jpeg")) {
@@ -202,63 +221,206 @@ export default function Dashboard() {
     newTasks.forEach((task) => uploadSingleFile(task));
   };
 
-  const uploadSingleFile = (task: UploadTask) => {
+  const CHUNK_SIZE = 90 * 1024 * 1024; // 90 MB — stays under Cloudflare 100MB limit
+
+  const uploadSingleFile = async (task: UploadTask) => {
     if (!task.file) return;
 
-    const formData = new FormData();
-    formData.append("file", task.file);
-    formData.append("uploaderName", "anonymous");
+    const cfg = appConfigRef.current;
+    const apiUrl = cfg?.apiUrl || process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+    const token = cfg?.auth || cfg?.accessKey;
+    const authHeader: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
 
-    const xhr = new XMLHttpRequest();
-    let lastLoaded = 0;
-    let lastTime = Date.now();
+    const SPEED_SAMPLES = 10;
+    const smoothSpeed = (samples: number[], newSample: number): number[] => {
+      const next = [...samples, newSample].slice(-SPEED_SAMPLES);
+      return next;
+    };
+    const avgSpeed = (samples: number[]) =>
+      samples.length ? samples.reduce((a, b) => a + b, 0) / samples.length : 0;
 
-    xhr.upload.addEventListener("progress", (e) => {
-      if (e.lengthComputable) {
-        const now = Date.now();
-        const dt = (now - lastTime) / 1000;
-        const speed = dt > 0 ? (e.loaded - lastLoaded) / dt : 0;
-        lastLoaded = e.loaded;
-        lastTime = now;
-        const progress = Math.round((e.loaded / e.total) * 100);
-        setUploadTasks((prev) =>
-          prev.map((t) =>
-            t.id === task.id ? { ...t, progress, uploadedBytes: e.loaded, speed } : t,
-          ),
-        );
-      }
-    });
+    // Small files — send directly via stream (no chunking needed)
+    if (task.fileSize <= CHUNK_SIZE) {
+      const xhr = new XMLHttpRequest();
+      xhrMap.current.set(task.id, xhr);
+      let lastLoaded = 0;
+      let lastTime = Date.now();
+      let samples: number[] = [];
 
-    xhr.addEventListener("load", async () => {
-      if (xhr.status >= 200 && xhr.status < 300) {
-        setUploadTasks((prev) =>
-          prev.map((t) => (t.id === task.id ? { ...t, status: "success", progress: 100 } : t)),
-        );
-        setTimeout(() => {
-          setUploadTasks((prev) => prev.filter((t) => t.id !== task.id));
-        }, 150);
-        await fetchFiles();
-      } else {
+      xhr.upload.addEventListener("progress", (e) => {
+        if (e.lengthComputable) {
+          const now = Date.now();
+          const dt = (now - lastTime) / 1000;
+          const raw = dt > 0 ? (e.loaded - lastLoaded) / dt : 0;
+          lastLoaded = e.loaded;
+          lastTime = now;
+          if (raw > 0) samples = smoothSpeed(samples, raw);
+          const speed = avgSpeed(samples);
+          setUploadTasks((prev) =>
+            prev.map((t) =>
+              t.id === task.id
+                ? { ...t, progress: Math.round((e.loaded / e.total) * 100), uploadedBytes: e.loaded, speed, speedSamples: samples }
+                : t,
+            ),
+          );
+        }
+      });
+
+      xhr.addEventListener("load", async () => {
+        xhrMap.current.delete(task.id);
+        if (xhr.status >= 200 && xhr.status < 300) {
+          setUploadTasks((prev) =>
+            prev.map((t) => (t.id === task.id ? { ...t, status: "success", progress: 100 } : t)),
+          );
+          setTimeout(() => setUploadTasks((prev) => prev.filter((t) => t.id !== task.id)), 150);
+          await fetchFiles();
+        } else {
+          setUploadTasks((prev) =>
+            prev.map((t) => (t.id === task.id ? { ...t, status: "error" } : t)),
+          );
+          toast(`อัปโหลดไฟล์ ${task.fileName} ไม่สำเร็จ`, { variant: "danger" });
+        }
+      });
+
+      xhr.addEventListener("error", () => {
+        xhrMap.current.delete(task.id);
         setUploadTasks((prev) =>
           prev.map((t) => (t.id === task.id ? { ...t, status: "error" } : t)),
         );
         toast(`อัปโหลดไฟล์ ${task.fileName} ไม่สำเร็จ`, { variant: "danger" });
-      }
-    });
+      });
 
-    xhr.addEventListener("error", () => {
+      xhr.addEventListener("abort", () => {
+        xhrMap.current.delete(task.id);
+        setUploadTasks((prev) => prev.filter((t) => t.id !== task.id));
+      });
+
+      xhr.open("POST", `${apiUrl}/files/upload/stream`);
+      xhr.withCredentials = true;
+      if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+      xhr.setRequestHeader("X-File-Name", encodeURIComponent(task.fileName));
+      xhr.setRequestHeader("X-Uploader-Name", "anonymous");
+      xhr.setRequestHeader("Content-Type", task.mimeType || "application/octet-stream");
+      xhr.send(task.file);
+      return;
+    }
+
+    // Large files — chunked upload via session API
+    const abortRef = { aborted: false };
+    xhrMap.current.set(task.id, { abort: () => { abortRef.aborted = true; } } as XMLHttpRequest);
+
+    try {
+      // Create session
+      const sessionRes = await fetch(`${apiUrl}/files/upload/session`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeader },
+        body: JSON.stringify({
+          fileName: task.fileName,
+          mimeType: task.mimeType || "application/octet-stream",
+          totalSize: task.fileSize,
+          uploaderName: "anonymous",
+        }),
+      });
+      if (!sessionRes.ok) throw new Error("Failed to create session");
+      const { sessionId } = await sessionRes.json();
+
+      setUploadTasks((prev) =>
+        prev.map((t) => (t.id === task.id ? { ...t, sessionId } : t)),
+      );
+
+      let lastTime = Date.now();
+      let lastBytes = 0;
+      let samples: number[] = [];
+
+      for (let offset = 0; offset < task.fileSize; offset += CHUNK_SIZE) {
+        if (abortRef.aborted) {
+          xhrMap.current.delete(task.id);
+          setUploadTasks((prev) => prev.filter((t) => t.id !== task.id));
+          return;
+        }
+
+        const chunk = task.file.slice(offset, Math.min(offset + CHUNK_SIZE, task.fileSize));
+        const end = offset + chunk.size - 1;
+
+        // Use XHR for this chunk to get upload progress
+        await new Promise<void>((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          xhrMap.current.set(task.id, xhr);
+
+          xhr.upload.addEventListener("progress", (e) => {
+            if (e.lengthComputable) {
+              const now = Date.now();
+              const dt = (now - lastTime) / 1000;
+              const uploadedBytes = offset + e.loaded;
+              const raw = dt > 0 ? (uploadedBytes - lastBytes) / dt : 0;
+              lastTime = now;
+              lastBytes = uploadedBytes;
+              if (raw > 0) samples = smoothSpeed(samples, raw);
+              const speed = avgSpeed(samples);
+              setUploadTasks((prev) =>
+                prev.map((t) =>
+                  t.id === task.id
+                    ? { ...t, progress: Math.round((uploadedBytes / task.fileSize) * 100), uploadedBytes, speed, speedSamples: samples }
+                    : t,
+                ),
+              );
+            }
+          });
+
+          xhr.addEventListener("load", () => {
+            if (xhr.status >= 200 && xhr.status < 300) resolve();
+            else reject(new Error(`Chunk failed: ${xhr.status}`));
+          });
+          xhr.addEventListener("error", () => reject(new Error("Network error")));
+          xhr.addEventListener("abort", () => {
+            abortRef.aborted = true;
+            resolve();
+          });
+
+          xhr.open("PUT", `${apiUrl}/files/upload/session/${sessionId}`);
+          xhr.withCredentials = true;
+          if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+          xhr.setRequestHeader("Content-Type", "application/octet-stream");
+          xhr.setRequestHeader("Content-Range", `bytes ${offset}-${end}/${task.fileSize}`);
+          xhr.send(chunk);
+        });
+
+        if (abortRef.aborted) {
+          xhrMap.current.delete(task.id);
+          setUploadTasks((prev) => prev.filter((t) => t.id !== task.id));
+          return;
+        }
+      }
+
+      xhrMap.current.delete(task.id);
+      setUploadTasks((prev) =>
+        prev.map((t) => (t.id === task.id ? { ...t, status: "success", progress: 100 } : t)),
+      );
+      setTimeout(() => setUploadTasks((prev) => prev.filter((t) => t.id !== task.id)), 150);
+      await fetchFiles();
+    } catch (err) {
+      console.error(err);
+      xhrMap.current.delete(task.id);
       setUploadTasks((prev) =>
         prev.map((t) => (t.id === task.id ? { ...t, status: "error" } : t)),
       );
-      toast(`อัปโหลดไฟล์ ${task.fileName} ไม่สำเร็จ กรุณาตรวจสอบการเชื่อมต่อ`, { variant: "danger" });
-    });
+      toast(`อัปโหลดไฟล์ ${task.fileName} ไม่สำเร็จ`, { variant: "danger" });
+    }
+  };
 
-    const uploadUrl = appConfig ? `${appConfig.apiUrl}/files/upload` : "/api/files/upload";
-    xhr.open("POST", uploadUrl);
-    xhr.withCredentials = true;
-    const token = appConfig?.auth || appConfig?.accessKey;
-    if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
-    xhr.send(formData);
+  const handleCancelUpload = (taskId: string) => {
+    xhrMap.current.get(taskId)?.abort();
+    // Clean up session on server if this was a chunked upload
+    const task = uploadTasks.find((t) => t.id === taskId);
+    if (task?.sessionId) {
+      const cfg = appConfigRef.current;
+      const apiUrl = cfg?.apiUrl || process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+      const token = cfg?.auth || cfg?.accessKey;
+      fetch(`${apiUrl}/files/upload/session/${task.sessionId}`, {
+        method: "DELETE",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      }).catch(() => {});
+    }
   };
 
   const handleDelete = (id: string) => {
@@ -506,7 +668,7 @@ export default function Dashboard() {
           onChange={handleChange}
         />
 
-        <UploadProgressList tasks={uploadTasks} />
+        <UploadProgressList tasks={uploadTasks} onCancel={handleCancelUpload} />
         <DeleteProgressList tasks={deleteTasks} />
 
         <div>
