@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 import {
   Loader2,
   File as FileIcon,
@@ -27,6 +26,7 @@ export default function Dashboard() {
   const [error, setError] = useState<string | null>(null);
   const [uploadTasks, setUploadTasks] = useState<UploadTask[]>([]);
   const [deleteTasks, setDeleteTasks] = useState<DeleteTask[]>([]);
+  const xhrMap = useRef<Map<string, XMLHttpRequest>>(new Map());
   const [dragActive, setDragActive] = useState(false);
 
   const [viewMode, setViewMode] = useState<"grid" | "list">("list");
@@ -74,17 +74,24 @@ export default function Dashboard() {
     }
   });
 
-  const router = useRouter();
 
-  const fetchFiles = async () => {
+
+  const fetchFiles = async (cfg?: { apiUrl: string; accessKey: string; auth?: string }) => {
     try {
       setError(null);
-      const res = await fetch("/api/files");
+      const config = cfg ?? appConfig;
+      const url = config ? `${config.apiUrl}/files` : "/api/files";
+      const headers: HeadersInit = {};
+      if (config) {
+        const token = config.auth || config.accessKey;
+        if (token) headers["Authorization"] = `Bearer ${token}`;
+      }
+      const res = await fetch(url, { headers, credentials: "include" });
       if (res.ok) {
         const data = await res.json();
         setFiles(data);
       } else if (res.status === 401) {
-        router.push("/login");
+        window.location.href = "/login";
       } else if (res.status === 503) {
         const errData = await res.json().catch(() => ({}));
         setError(
@@ -103,12 +110,13 @@ export default function Dashboard() {
   };
 
   useEffect(() => {
-    fetchFiles();
     fetch("/api/config")
       .then((res) => res.json())
-      .then((data) => setAppConfig(data))
-      .catch(console.error);
-
+      .then((data) => {
+        setAppConfig(data);
+        fetchFiles(data);
+      })
+      .catch(() => fetchFiles());
   }, []);
 
   useEffect(() => {
@@ -151,7 +159,7 @@ export default function Dashboard() {
 
   const handleLogout = async () => {
     await fetch("/api/auth/logout", { method: "POST" });
-    router.push("/login");
+    window.location.href = "/login";
   };
 
   const handleDrag = (e: React.DragEvent) => {
@@ -210,6 +218,7 @@ export default function Dashboard() {
     formData.append("uploaderName", "anonymous");
 
     const xhr = new XMLHttpRequest();
+    xhrMap.current.set(task.id, xhr);
     let lastLoaded = 0;
     let lastTime = Date.now();
 
@@ -230,6 +239,7 @@ export default function Dashboard() {
     });
 
     xhr.addEventListener("load", async () => {
+      xhrMap.current.delete(task.id);
       if (xhr.status >= 200 && xhr.status < 300) {
         setUploadTasks((prev) =>
           prev.map((t) => (t.id === task.id ? { ...t, status: "success", progress: 100 } : t)),
@@ -247,10 +257,16 @@ export default function Dashboard() {
     });
 
     xhr.addEventListener("error", () => {
+      xhrMap.current.delete(task.id);
       setUploadTasks((prev) =>
         prev.map((t) => (t.id === task.id ? { ...t, status: "error" } : t)),
       );
       toast(`อัปโหลดไฟล์ ${task.fileName} ไม่สำเร็จ กรุณาตรวจสอบการเชื่อมต่อ`, { variant: "danger" });
+    });
+
+    xhr.addEventListener("abort", () => {
+      xhrMap.current.delete(task.id);
+      setUploadTasks((prev) => prev.filter((t) => t.id !== task.id));
     });
 
     const uploadUrl = appConfig ? `${appConfig.apiUrl}/files/upload` : "/api/files/upload";
@@ -259,6 +275,10 @@ export default function Dashboard() {
     const token = appConfig?.auth || appConfig?.accessKey;
     if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
     xhr.send(formData);
+  };
+
+  const handleCancelUpload = (taskId: string) => {
+    xhrMap.current.get(taskId)?.abort();
   };
 
   const handleDelete = (id: string) => {
@@ -506,7 +526,7 @@ export default function Dashboard() {
           onChange={handleChange}
         />
 
-        <UploadProgressList tasks={uploadTasks} />
+        <UploadProgressList tasks={uploadTasks} onCancel={handleCancelUpload} />
         <DeleteProgressList tasks={deleteTasks} />
 
         <div>
