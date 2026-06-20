@@ -73,6 +73,12 @@ export const fileController = (
         return { error: "No body" };
       }
 
+      const contentLength = Number(request.headers.get("content-length") || 0);
+      if (contentLength > 5 * 1024 * 1024 * 1024) {
+        set.status = 413;
+        return { error: "File exceeds 5 GB limit" };
+      }
+
       const ext = fileName.split(".").pop() || "";
       const objectKey = `${crypto.randomUUID()}-${Date.now()}.${ext}`;
       const filePath = path.join(config.uploadDir, objectKey);

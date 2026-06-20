@@ -190,7 +190,16 @@ export default function Dashboard() {
     }
   };
 
+  const MAX_FILE_SIZE = 5 * 1024 * 1024 * 1024; // 5 GB
+
   const handleMultipleUploads = (files: File[]) => {
+    const oversized = files.filter((f) => f.size > MAX_FILE_SIZE);
+    oversized.forEach((f) =>
+      toast(`${f.name} เกินขนาดสูงสุด 5 GB`, { variant: "danger" }),
+    );
+    files = files.filter((f) => f.size <= MAX_FILE_SIZE);
+    if (files.length === 0) return;
+
     const newTasks: UploadTask[] = files.map((file) => {
       let finalFile = file;
       if (file.name.toLowerCase().endsWith(".jpeg")) {
@@ -212,71 +221,173 @@ export default function Dashboard() {
     newTasks.forEach((task) => uploadSingleFile(task));
   };
 
-  const uploadSingleFile = (task: UploadTask) => {
+  const CHUNK_SIZE = 90 * 1024 * 1024; // 90 MB — stays under Cloudflare 100MB limit
+
+  const uploadSingleFile = async (task: UploadTask) => {
     if (!task.file) return;
 
-    const xhr = new XMLHttpRequest();
-    xhrMap.current.set(task.id, xhr);
-    let lastLoaded = 0;
-    let lastTime = Date.now();
+    const cfg = appConfigRef.current;
+    const apiUrl = cfg?.apiUrl || process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+    const token = cfg?.auth || cfg?.accessKey;
+    const authHeader: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
 
-    xhr.upload.addEventListener("progress", (e) => {
-      if (e.lengthComputable) {
-        const now = Date.now();
-        const dt = (now - lastTime) / 1000;
-        const speed = dt > 0 ? (e.loaded - lastLoaded) / dt : 0;
-        lastLoaded = e.loaded;
-        lastTime = now;
-        const progress = Math.round((e.loaded / e.total) * 100);
-        setUploadTasks((prev) =>
-          prev.map((t) =>
-            t.id === task.id ? { ...t, progress, uploadedBytes: e.loaded, speed } : t,
-          ),
-        );
-      }
-    });
+    // Small files — send directly via stream (no chunking needed)
+    if (task.fileSize <= CHUNK_SIZE) {
+      const xhr = new XMLHttpRequest();
+      xhrMap.current.set(task.id, xhr);
+      let lastLoaded = 0;
+      let lastTime = Date.now();
 
-    xhr.addEventListener("load", async () => {
-      xhrMap.current.delete(task.id);
-      if (xhr.status >= 200 && xhr.status < 300) {
-        setUploadTasks((prev) =>
-          prev.map((t) => (t.id === task.id ? { ...t, status: "success", progress: 100 } : t)),
-        );
-        setTimeout(() => {
-          setUploadTasks((prev) => prev.filter((t) => t.id !== task.id));
-        }, 150);
-        await fetchFiles();
-      } else {
+      xhr.upload.addEventListener("progress", (e) => {
+        if (e.lengthComputable) {
+          const now = Date.now();
+          const dt = (now - lastTime) / 1000;
+          const speed = dt > 0 ? (e.loaded - lastLoaded) / dt : 0;
+          lastLoaded = e.loaded;
+          lastTime = now;
+          setUploadTasks((prev) =>
+            prev.map((t) =>
+              t.id === task.id
+                ? { ...t, progress: Math.round((e.loaded / e.total) * 100), uploadedBytes: e.loaded, speed }
+                : t,
+            ),
+          );
+        }
+      });
+
+      xhr.addEventListener("load", async () => {
+        xhrMap.current.delete(task.id);
+        if (xhr.status >= 200 && xhr.status < 300) {
+          setUploadTasks((prev) =>
+            prev.map((t) => (t.id === task.id ? { ...t, status: "success", progress: 100 } : t)),
+          );
+          setTimeout(() => setUploadTasks((prev) => prev.filter((t) => t.id !== task.id)), 150);
+          await fetchFiles();
+        } else {
+          setUploadTasks((prev) =>
+            prev.map((t) => (t.id === task.id ? { ...t, status: "error" } : t)),
+          );
+          toast(`อัปโหลดไฟล์ ${task.fileName} ไม่สำเร็จ`, { variant: "danger" });
+        }
+      });
+
+      xhr.addEventListener("error", () => {
+        xhrMap.current.delete(task.id);
         setUploadTasks((prev) =>
           prev.map((t) => (t.id === task.id ? { ...t, status: "error" } : t)),
         );
         toast(`อัปโหลดไฟล์ ${task.fileName} ไม่สำเร็จ`, { variant: "danger" });
-      }
-    });
+      });
 
-    xhr.addEventListener("error", () => {
+      xhr.addEventListener("abort", () => {
+        xhrMap.current.delete(task.id);
+        setUploadTasks((prev) => prev.filter((t) => t.id !== task.id));
+      });
+
+      xhr.open("POST", `${apiUrl}/files/upload/stream`);
+      xhr.withCredentials = true;
+      if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+      xhr.setRequestHeader("X-File-Name", encodeURIComponent(task.fileName));
+      xhr.setRequestHeader("X-Uploader-Name", "anonymous");
+      xhr.setRequestHeader("Content-Type", task.mimeType || "application/octet-stream");
+      xhr.send(task.file);
+      return;
+    }
+
+    // Large files — chunked upload via session API
+    const abortRef = { aborted: false };
+    xhrMap.current.set(task.id, { abort: () => { abortRef.aborted = true; } } as XMLHttpRequest);
+
+    try {
+      // Create session
+      const sessionRes = await fetch(`${apiUrl}/files/upload/session`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeader },
+        body: JSON.stringify({
+          fileName: task.fileName,
+          mimeType: task.mimeType || "application/octet-stream",
+          totalSize: task.fileSize,
+          uploaderName: "anonymous",
+        }),
+      });
+      if (!sessionRes.ok) throw new Error("Failed to create session");
+      const { sessionId } = await sessionRes.json();
+
+      let lastTime = Date.now();
+      let lastBytes = 0;
+
+      for (let offset = 0; offset < task.fileSize; offset += CHUNK_SIZE) {
+        if (abortRef.aborted) {
+          xhrMap.current.delete(task.id);
+          setUploadTasks((prev) => prev.filter((t) => t.id !== task.id));
+          return;
+        }
+
+        const chunk = task.file.slice(offset, Math.min(offset + CHUNK_SIZE, task.fileSize));
+        const end = offset + chunk.size - 1;
+
+        // Use XHR for this chunk to get upload progress
+        await new Promise<void>((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          xhrMap.current.set(task.id, xhr);
+
+          xhr.upload.addEventListener("progress", (e) => {
+            if (e.lengthComputable) {
+              const now = Date.now();
+              const dt = (now - lastTime) / 1000;
+              const uploadedBytes = offset + e.loaded;
+              const speed = dt > 0 ? (uploadedBytes - lastBytes) / dt : 0;
+              lastTime = now;
+              lastBytes = uploadedBytes;
+              setUploadTasks((prev) =>
+                prev.map((t) =>
+                  t.id === task.id
+                    ? { ...t, progress: Math.round((uploadedBytes / task.fileSize) * 100), uploadedBytes, speed }
+                    : t,
+                ),
+              );
+            }
+          });
+
+          xhr.addEventListener("load", () => {
+            if (xhr.status >= 200 && xhr.status < 300) resolve();
+            else reject(new Error(`Chunk failed: ${xhr.status}`));
+          });
+          xhr.addEventListener("error", () => reject(new Error("Network error")));
+          xhr.addEventListener("abort", () => {
+            abortRef.aborted = true;
+            resolve();
+          });
+
+          xhr.open("PUT", `${apiUrl}/files/upload/session/${sessionId}`);
+          xhr.withCredentials = true;
+          if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+          xhr.setRequestHeader("Content-Type", "application/octet-stream");
+          xhr.setRequestHeader("Content-Range", `bytes ${offset}-${end}/${task.fileSize}`);
+          xhr.send(chunk);
+        });
+
+        if (abortRef.aborted) {
+          xhrMap.current.delete(task.id);
+          setUploadTasks((prev) => prev.filter((t) => t.id !== task.id));
+          return;
+        }
+      }
+
+      xhrMap.current.delete(task.id);
+      setUploadTasks((prev) =>
+        prev.map((t) => (t.id === task.id ? { ...t, status: "success", progress: 100 } : t)),
+      );
+      setTimeout(() => setUploadTasks((prev) => prev.filter((t) => t.id !== task.id)), 150);
+      await fetchFiles();
+    } catch (err) {
+      console.error(err);
       xhrMap.current.delete(task.id);
       setUploadTasks((prev) =>
         prev.map((t) => (t.id === task.id ? { ...t, status: "error" } : t)),
       );
-      toast(`อัปโหลดไฟล์ ${task.fileName} ไม่สำเร็จ กรุณาตรวจสอบการเชื่อมต่อ`, { variant: "danger" });
-    });
-
-    xhr.addEventListener("abort", () => {
-      xhrMap.current.delete(task.id);
-      setUploadTasks((prev) => prev.filter((t) => t.id !== task.id));
-    });
-
-    const cfg = appConfigRef.current;
-    const apiUrl = cfg?.apiUrl || process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-    xhr.open("POST", `${apiUrl}/files/upload/stream`);
-    xhr.withCredentials = true;
-    const token = cfg?.auth || cfg?.accessKey;
-    if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
-    xhr.setRequestHeader("X-File-Name", encodeURIComponent(task.fileName));
-    xhr.setRequestHeader("X-Uploader-Name", "anonymous");
-    xhr.setRequestHeader("Content-Type", task.mimeType || "application/octet-stream");
-    xhr.send(task.file);
+      toast(`อัปโหลดไฟล์ ${task.fileName} ไม่สำเร็จ`, { variant: "danger" });
+    }
   };
 
   const handleCancelUpload = (taskId: string) => {
