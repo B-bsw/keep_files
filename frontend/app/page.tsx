@@ -7,6 +7,7 @@ import {
   Trash2,
   ArrowDown,
   ArrowUp,
+  X,
 } from "lucide-react";
 import { FileData, UploadTask, DeleteTask, SortOption } from "../types";
 import { Header } from "../components/Header/Header";
@@ -754,14 +755,25 @@ export default function Dashboard() {
           <label className="text-xs font-medium text-gray-500 dark:text-gray-500 shrink-0">
             Your name
           </label>
-          <input
-            type="text"
-            value={uploaderName}
-            onChange={(e) => setUploaderName(e.target.value)}
-            placeholder="anonymous"
-            maxLength={64}
-            className="flex-1 max-w-xs h-8 px-3 text-sm rounded-lg border border-gray-200 dark:border-white/8 bg-white dark:bg-[#111111] text-gray-900 dark:text-gray-100 placeholder:text-gray-300 dark:placeholder:text-gray-600 focus:outline-none focus:border-gray-400 dark:focus:border-white/25 transition-colors"
-          />
+          <div className="relative flex items-center max-w-xs flex-1">
+            <input
+              type="text"
+              value={uploaderName}
+              onChange={(e) => setUploaderName(e.target.value)}
+              placeholder="anonymous"
+              maxLength={64}
+              className="w-full h-8 pl-3 pr-7 text-sm rounded-lg border border-gray-200 dark:border-white/8 bg-white dark:bg-[#111111] text-gray-900 dark:text-gray-100 placeholder:text-gray-300 dark:placeholder:text-gray-600 focus:outline-none focus:border-gray-400 dark:focus:border-white/25 transition-colors"
+            />
+            {uploaderName && (
+              <button
+                onClick={() => setUploaderName("")}
+                className="absolute right-2 text-gray-300 hover:text-gray-600 dark:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                aria-label="Clear"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
         </div>
 
         <UploadProgressList tasks={uploadTasks} onCancel={handleCancelUpload} />
