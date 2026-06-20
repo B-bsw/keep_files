@@ -1,16 +1,9 @@
-import { existsSync, mkdirSync } from "fs";
-import { unlink, rename, open } from "fs/promises";
-import path from "path";
 import { prisma } from "../db";
-import { config } from "../config";
-
-const CHUNK_SIZE = 8 * 1024 * 1024; // 8 MB
+import { minioService } from "./MinioService";
 
 export class FileService {
   constructor() {
-    if (!existsSync(config.uploadDir)) {
-      mkdirSync(config.uploadDir, { recursive: true });
-    }
+    minioService.ensureBucket().catch(console.error);
   }
 
   public async getAllFiles() {
@@ -30,9 +23,9 @@ export class FileService {
 
     const ext = originalName.split(".").pop() || "";
     const objectKey = `${crypto.randomUUID()}-${Date.now()}.${ext}`;
-    const filePath = path.join(config.uploadDir, objectKey);
 
-    await Bun.write(filePath, file);
+    const buffer = Buffer.from(await file.arrayBuffer());
+    await minioService.putObject(objectKey, buffer, size, mimeType);
 
     return prisma.file.create({
       data: {
@@ -49,13 +42,10 @@ export class FileService {
     const file = await this.getFileById(id);
     if (!file) throw new Error("File not found");
 
-    const filePath = path.join(config.uploadDir, file.objectKey);
     try {
-      if (existsSync(filePath)) {
-        await unlink(filePath);
-      }
+      await minioService.removeObject(file.objectKey);
     } catch (error) {
-      console.error("Error deleting local file:", error);
+      console.error("Error deleting object from MinIO:", error);
     }
 
     await prisma.file.delete({ where: { id } });
@@ -65,11 +55,20 @@ export class FileService {
   public async cancelUploadSession(sessionId: string) {
     const session = await this.getUploadSession(sessionId);
     if (!session) return;
-    const tempPath = path.join(config.uploadDir, `tmp_${session.objectKey}`);
-    try {
-      if (existsSync(tempPath)) await unlink(tempPath);
-    } catch {}
+    await minioService.removeTempObject(session.objectKey);
     await prisma.uploadSession.delete({ where: { id: sessionId } });
+  }
+
+  public async streamUpload({ objectKey, buffer, size, originalName, mimeType, uploaderName }: {
+    objectKey: string;
+    buffer: Buffer;
+    size: number;
+    originalName: string;
+    mimeType: string;
+    uploaderName?: string;
+  }) {
+    await minioService.putObject(objectKey, buffer, size, mimeType);
+    return this.saveFileRecord({ originalName, objectKey, size, mimeType, uploaderName });
   }
 
   public async saveFileRecord({ originalName, objectKey, size, mimeType, uploaderName }: {
@@ -114,25 +113,14 @@ export class FileService {
     const session = await this.getUploadSession(sessionId);
     if (!session) throw new Error("Upload session not found");
 
-    const tempPath = path.join(config.uploadDir, `tmp_${session.objectKey}`);
-
-    // Write chunk at exact offset
-    const fd = await open(tempPath, "r+").catch(async () => {
-      // File doesn't exist yet — create it by writing a placeholder
-      const f = await open(tempPath, "w");
-      await f.close();
-      return open(tempPath, "r+");
-    });
-    await fd.write(chunk, 0, chunk.length, rangeStart);
-    await fd.close();
+    await minioService.appendChunkToTemp(session.objectKey, chunk, rangeStart, Number(session.totalSize));
 
     const newUploaded = rangeStart + chunk.length;
-    const updated = await prisma.uploadSession.update({
+    await prisma.uploadSession.update({
       where: { id: sessionId },
       data: { uploadedSize: BigInt(newUploaded) },
     });
 
-    // Finalize if complete
     if (newUploaded >= Number(session.totalSize)) {
       return this.finalizeSession(session);
     }
@@ -141,10 +129,7 @@ export class FileService {
   }
 
   private async finalizeSession(session: { id: string; objectKey: string; fileName: string; mimeType: string; totalSize: bigint; uploaderName: string | null }) {
-    const tempPath = path.join(config.uploadDir, `tmp_${session.objectKey}`);
-    const finalPath = path.join(config.uploadDir, session.objectKey);
-
-    await rename(tempPath, finalPath);
+    await minioService.finalizeTempObject(session.objectKey, session.mimeType, Number(session.totalSize));
 
     const newFile = await prisma.file.create({
       data: {
@@ -184,5 +169,13 @@ export class FileService {
         uploadDate: new Date(),
       },
     });
+  }
+
+  public async getObjectStream(objectKey: string) {
+    return minioService.getObjectStream(objectKey);
+  }
+
+  public async objectExists(objectKey: string) {
+    return minioService.objectExists(objectKey);
   }
 }
