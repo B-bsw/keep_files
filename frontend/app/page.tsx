@@ -644,21 +644,36 @@ export default function Dashboard() {
     setConfirmModalOpen(true);
   };
 
-  const toggleSelection = (id: string) => {
-    const newSelected = new Set(selectedFiles);
-    if (newSelected.has(id)) {
-      newSelected.delete(id);
-    } else {
-      newSelected.add(id);
-    }
-    setSelectedFiles(newSelected);
-  };
+  const anchorId = useRef<string | null>(null);
 
-  const toggleSelectAll = () => {
-    if (selectedFiles.size === files.length) {
-      setSelectedFiles(new Set());
+  const handleFileClick = (id: string, multi: boolean, range: boolean) => {
+    if (range && anchorId.current) {
+      const ids = sortedFiles.map((f) => f.id);
+      const anchorIdx = ids.indexOf(anchorId.current);
+      const targetIdx = ids.indexOf(id);
+      if (anchorIdx !== -1 && targetIdx !== -1) {
+        const [from, to] = anchorIdx < targetIdx ? [anchorIdx, targetIdx] : [targetIdx, anchorIdx];
+        const rangeIds = ids.slice(from, to + 1);
+        setSelectedFiles((prev) => {
+          const next = new Set(prev);
+          rangeIds.forEach((rid) => next.add(rid));
+          return next;
+        });
+        return;
+      }
+    }
+    if (multi) {
+      const newSelected = new Set(selectedFiles);
+      if (newSelected.has(id)) {
+        newSelected.delete(id);
+      } else {
+        newSelected.add(id);
+      }
+      anchorId.current = id;
+      setSelectedFiles(newSelected);
     } else {
-      setSelectedFiles(new Set(files.map((f) => f.id)));
+      anchorId.current = id;
+      setSelectedFiles(selectedFiles.size === 1 && selectedFiles.has(id) ? new Set() : new Set([id]));
     }
   };
 
@@ -756,11 +771,14 @@ export default function Dashboard() {
           <FileToolbar
             filesCount={files.length}
             selectedCount={selectedFiles.size}
-            isAllSelected={
-              files.length > 0 && selectedFiles.size === files.length
+            isAllSelected={files.length > 0 && selectedFiles.size === files.length}
+            onToggleSelectAll={() =>
+              selectedFiles.size === files.length
+                ? setSelectedFiles(new Set())
+                : setSelectedFiles(new Set(files.map((f) => f.id)))
             }
-            onToggleSelectAll={toggleSelectAll}
             onBulkDelete={handleBulkDelete}
+            onClearSelection={() => setSelectedFiles(new Set())}
             viewMode={viewMode}
             setViewMode={setViewMode}
             sortOption={sortOption}
@@ -769,7 +787,6 @@ export default function Dashboard() {
 
           {viewMode === "list" && files.length > 0 && !loading && !error && (
             <div className="hidden md:flex items-center gap-3 md:gap-4 px-3 md:px-4 py-2 mt-4 mb-2 text-[10px] font-semibold text-gray-500 uppercase tracking-widest border-b border-gray-200 dark:border-white/5 select-none">
-              <div className="w-4 h-4 md:w-5 md:h-5 shrink-0" />
               <div className="flex-1 min-w-0 flex items-center justify-between gap-1 md:gap-4">
                 <div
                   className="flex-1 min-w-0 flex items-center gap-1 cursor-pointer hover:text-gray-900 dark:hover:text-white transition-colors"
@@ -907,7 +924,7 @@ export default function Dashboard() {
                   file={file}
                   viewMode={viewMode}
                   isSelected={selectedFiles.has(file.id)}
-                  onToggleSelection={toggleSelection}
+                  onFileClick={handleFileClick}
                   onActionRequest={handleActionRequest}
                   onDelete={handleDelete}
                 />
