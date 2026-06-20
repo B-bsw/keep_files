@@ -23,6 +23,10 @@ const SORT_LABELS: Record<SortOption, string> = {
   "size-asc": "Size",
   "name-desc": "Name",
   "name-asc": "Name",
+  "type-desc": "Type",
+  "type-asc": "Type",
+  "uploader-desc": "Uploader",
+  "uploader-asc": "Uploader",
 };
 
 type FileToolbarProps = {
@@ -110,7 +114,9 @@ export function FileToolbar({
                       ? Clock
                       : val.startsWith("size")
                         ? HardDrive
-                        : Type;
+                        : val.startsWith("uploader")
+                          ? Type
+                          : Type;
                     const DirIcon = val.endsWith("desc") ? ArrowDown : ArrowUp;
                     return (
                       <Dropdown.Item key={val} id={val} textValue={label}>

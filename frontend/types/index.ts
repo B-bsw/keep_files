@@ -34,4 +34,8 @@ export type SortOption =
   | "size-desc"
   | "size-asc"
   | "name-asc"
-  | "name-desc";
+  | "name-desc"
+  | "type-asc"
+  | "type-desc"
+  | "uploader-asc"
+  | "uploader-desc";

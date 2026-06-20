@@ -55,6 +55,7 @@ export function UploadArea({
           <p className="text-sm text-gray-500">
             Drag and drop or click to browse
           </p>
+          <p className="text-xs text-gray-400 dark:text-gray-600 mt-1">Any file type · up to 5 GB per file</p>
         </div>
       </div>
     </div>

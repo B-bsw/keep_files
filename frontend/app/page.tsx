@@ -33,12 +33,17 @@ export default function Dashboard() {
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
   const [previewModalOpen, setPreviewModalOpen] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewFile, setPreviewFile] = useState<FileData | null>(null);
   const [appConfig, setAppConfig] = useState<{
     apiUrl: string;
     accessKey: string;
     auth?: string;
   } | null>(null);
-  const appConfigRef = useRef<{ apiUrl: string; accessKey: string; auth?: string } | null>(null);
+  const appConfigRef = useRef<{
+    apiUrl: string;
+    accessKey: string;
+    auth?: string;
+  } | null>(null);
 
   const [confirmModalOpen, setConfirmModalOpen] = useState(false);
   const [confirmAction, setConfirmAction] = useState<{
@@ -51,6 +56,8 @@ export default function Dashboard() {
   const [fileToEdit, setFileToEdit] = useState<FileData | null>(null);
 
   const [sortOption, setSortOption] = useState<SortOption>("date-desc");
+
+  const getExt = (name: string) => name.split(".").pop()?.toLowerCase() ?? "";
 
   const sortedFiles = [...files].sort((a, b) => {
     switch (sortOption) {
@@ -70,14 +77,24 @@ export default function Dashboard() {
         return a.originalName.localeCompare(b.originalName);
       case "name-desc":
         return b.originalName.localeCompare(a.originalName);
+      case "type-asc":
+        return getExt(a.originalName).localeCompare(getExt(b.originalName));
+      case "type-desc":
+        return getExt(b.originalName).localeCompare(getExt(a.originalName));
+      case "uploader-asc":
+        return (a.uploaderName || "").localeCompare(b.uploaderName || "");
+      case "uploader-desc":
+        return (b.uploaderName || "").localeCompare(a.uploaderName || "");
       default:
         return 0;
     }
   });
 
-
-
-  const fetchFiles = async (cfg?: { apiUrl: string; accessKey: string; auth?: string }) => {
+  const fetchFiles = async (cfg?: {
+    apiUrl: string;
+    accessKey: string;
+    auth?: string;
+  }) => {
     try {
       setError(null);
       const config = cfg ?? appConfig;
@@ -227,9 +244,12 @@ export default function Dashboard() {
     if (!task.file) return;
 
     const cfg = appConfigRef.current;
-    const apiUrl = cfg?.apiUrl || process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+    const apiUrl =
+      cfg?.apiUrl || process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
     const token = cfg?.auth || cfg?.accessKey;
-    const authHeader: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+    const authHeader: Record<string, string> = token
+      ? { Authorization: `Bearer ${token}` }
+      : {};
 
     const SPEED_SAMPLES = 10;
     const smoothSpeed = (samples: number[], newSample: number): number[] => {
@@ -259,7 +279,13 @@ export default function Dashboard() {
           setUploadTasks((prev) =>
             prev.map((t) =>
               t.id === task.id
-                ? { ...t, progress: Math.round((e.loaded / e.total) * 100), uploadedBytes: e.loaded, speed, speedSamples: samples }
+                ? {
+                    ...t,
+                    progress: Math.round((e.loaded / e.total) * 100),
+                    uploadedBytes: e.loaded,
+                    speed,
+                    speedSamples: samples,
+                  }
                 : t,
             ),
           );
@@ -270,15 +296,23 @@ export default function Dashboard() {
         xhrMap.current.delete(task.id);
         if (xhr.status >= 200 && xhr.status < 300) {
           setUploadTasks((prev) =>
-            prev.map((t) => (t.id === task.id ? { ...t, status: "success", progress: 100 } : t)),
+            prev.map((t) =>
+              t.id === task.id ? { ...t, status: "success", progress: 100 } : t,
+            ),
           );
-          setTimeout(() => setUploadTasks((prev) => prev.filter((t) => t.id !== task.id)), 150);
+          setTimeout(
+            () =>
+              setUploadTasks((prev) => prev.filter((t) => t.id !== task.id)),
+            150,
+          );
           await fetchFiles();
         } else {
           setUploadTasks((prev) =>
             prev.map((t) => (t.id === task.id ? { ...t, status: "error" } : t)),
           );
-          toast(`อัปโหลดไฟล์ ${task.fileName} ไม่สำเร็จ`, { variant: "danger" });
+          toast(`อัปโหลดไฟล์ ${task.fileName} ไม่สำเร็จ`, {
+            variant: "danger",
+          });
         }
       });
 
@@ -300,14 +334,21 @@ export default function Dashboard() {
       if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
       xhr.setRequestHeader("X-File-Name", encodeURIComponent(task.fileName));
       xhr.setRequestHeader("X-Uploader-Name", "anonymous");
-      xhr.setRequestHeader("Content-Type", task.mimeType || "application/octet-stream");
+      xhr.setRequestHeader(
+        "Content-Type",
+        task.mimeType || "application/octet-stream",
+      );
       xhr.send(task.file);
       return;
     }
 
     // Large files — chunked upload via session API
     const abortRef = { aborted: false };
-    xhrMap.current.set(task.id, { abort: () => { abortRef.aborted = true; } } as XMLHttpRequest);
+    xhrMap.current.set(task.id, {
+      abort: () => {
+        abortRef.aborted = true;
+      },
+    } as XMLHttpRequest);
 
     try {
       // Create session
@@ -339,7 +380,10 @@ export default function Dashboard() {
           return;
         }
 
-        const chunk = task.file.slice(offset, Math.min(offset + CHUNK_SIZE, task.fileSize));
+        const chunk = task.file.slice(
+          offset,
+          Math.min(offset + CHUNK_SIZE, task.fileSize),
+        );
         const end = offset + chunk.size - 1;
 
         // Use XHR for this chunk to get upload progress
@@ -360,7 +404,15 @@ export default function Dashboard() {
               setUploadTasks((prev) =>
                 prev.map((t) =>
                   t.id === task.id
-                    ? { ...t, progress: Math.round((uploadedBytes / task.fileSize) * 100), uploadedBytes, speed, speedSamples: samples }
+                    ? {
+                        ...t,
+                        progress: Math.round(
+                          (uploadedBytes / task.fileSize) * 100,
+                        ),
+                        uploadedBytes,
+                        speed,
+                        speedSamples: samples,
+                      }
                     : t,
                 ),
               );
@@ -371,7 +423,9 @@ export default function Dashboard() {
             if (xhr.status >= 200 && xhr.status < 300) resolve();
             else reject(new Error(`Chunk failed: ${xhr.status}`));
           });
-          xhr.addEventListener("error", () => reject(new Error("Network error")));
+          xhr.addEventListener("error", () =>
+            reject(new Error("Network error")),
+          );
           xhr.addEventListener("abort", () => {
             abortRef.aborted = true;
             resolve();
@@ -381,7 +435,10 @@ export default function Dashboard() {
           xhr.withCredentials = true;
           if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
           xhr.setRequestHeader("Content-Type", "application/octet-stream");
-          xhr.setRequestHeader("Content-Range", `bytes ${offset}-${end}/${task.fileSize}`);
+          xhr.setRequestHeader(
+            "Content-Range",
+            `bytes ${offset}-${end}/${task.fileSize}`,
+          );
           xhr.send(chunk);
         });
 
@@ -394,9 +451,14 @@ export default function Dashboard() {
 
       xhrMap.current.delete(task.id);
       setUploadTasks((prev) =>
-        prev.map((t) => (t.id === task.id ? { ...t, status: "success", progress: 100 } : t)),
+        prev.map((t) =>
+          t.id === task.id ? { ...t, status: "success", progress: 100 } : t,
+        ),
       );
-      setTimeout(() => setUploadTasks((prev) => prev.filter((t) => t.id !== task.id)), 150);
+      setTimeout(
+        () => setUploadTasks((prev) => prev.filter((t) => t.id !== task.id)),
+        150,
+      );
       await fetchFiles();
     } catch (err) {
       console.error(err);
@@ -414,7 +476,10 @@ export default function Dashboard() {
     const task = uploadTasks.find((t) => t.id === taskId);
     if (task?.sessionId) {
       const cfg = appConfigRef.current;
-      const apiUrl = cfg?.apiUrl || process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+      const apiUrl =
+        cfg?.apiUrl ||
+        process.env.NEXT_PUBLIC_API_URL ||
+        "http://localhost:3001";
       const token = cfg?.auth || cfg?.accessKey;
       fetch(`${apiUrl}/files/upload/session/${task.sessionId}`, {
         method: "DELETE",
@@ -618,6 +683,7 @@ export default function Dashboard() {
           window.open(data.url, "_blank");
         } else if (type === "preview") {
           setPreviewUrl(data.url);
+          setPreviewFile(file);
           setPreviewModalOpen(true);
         }
       } else {
@@ -707,8 +773,40 @@ export default function Dashboard() {
                     ))}
                 </div>
                 <div className="hidden md:flex shrink-0 w-100 items-center gap-4">
-                  <div className="w-16">Type</div>
-                  <div className="flex-1">Uploader</div>
+                  <div
+                    className="w-16 flex items-center gap-1 cursor-pointer hover:text-gray-900 dark:hover:text-white transition-colors"
+                    onClick={() =>
+                      setSortOption(
+                        sortOption === "type-desc" ? "type-asc" : "type-desc",
+                      )
+                    }
+                  >
+                    Type
+                    {sortOption.startsWith("type") &&
+                      (sortOption.endsWith("desc") ? (
+                        <ArrowDown className="w-3 h-3" />
+                      ) : (
+                        <ArrowUp className="w-3 h-3" />
+                      ))}
+                  </div>
+                  <div
+                    className="flex-1 flex items-center gap-1 cursor-pointer hover:text-gray-900 dark:hover:text-white transition-colors"
+                    onClick={() =>
+                      setSortOption(
+                        sortOption === "uploader-desc"
+                          ? "uploader-asc"
+                          : "uploader-desc",
+                      )
+                    }
+                  >
+                    Uploader
+                    {sortOption.startsWith("uploader") &&
+                      (sortOption.endsWith("desc") ? (
+                        <ArrowDown className="w-3 h-3" />
+                      ) : (
+                        <ArrowUp className="w-3 h-3" />
+                      ))}
+                  </div>
                   <div
                     className="w-20 flex justify-end items-center gap-1 cursor-pointer hover:text-gray-900 dark:hover:text-white transition-colors"
                     onClick={() =>
@@ -807,7 +905,11 @@ export default function Dashboard() {
       <PreviewModal
         isOpen={previewModalOpen}
         previewUrl={previewUrl}
-        onClose={() => setPreviewModalOpen(false)}
+        file={previewFile}
+        onClose={() => {
+          setPreviewModalOpen(false);
+          setPreviewFile(null);
+        }}
       />
 
       <ConfirmModal
