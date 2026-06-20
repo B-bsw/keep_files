@@ -33,7 +33,10 @@ export default function DocxViewerInner({ url }: { url: string }) {
     <div className="absolute inset-0 overflow-y-auto bg-gray-100 dark:bg-[#0a0a0a]">
       <div className="flex justify-center py-6 px-4">
         <div className="w-full max-w-3xl bg-white dark:bg-[#1a1a1a] shadow-sm rounded-lg overflow-hidden">
-          <ReactDocxViewer file={buffer} className="w-full" />
+          <ReactDocxViewer
+            file={buffer}
+            className="w-full text-black"
+          />
         </div>
       </div>
     </div>
