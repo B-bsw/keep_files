@@ -56,6 +56,7 @@ export default function Dashboard() {
   const [fileToEdit, setFileToEdit] = useState<FileData | null>(null);
 
   const [sortOption, setSortOption] = useState<SortOption>("date-desc");
+  const [uploaderName, setUploaderName] = useState("");
 
   const getExt = (name: string) => name.split(".").pop()?.toLowerCase() ?? "";
 
@@ -333,7 +334,7 @@ export default function Dashboard() {
       xhr.withCredentials = true;
       if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
       xhr.setRequestHeader("X-File-Name", encodeURIComponent(task.fileName));
-      xhr.setRequestHeader("X-Uploader-Name", "anonymous");
+      xhr.setRequestHeader("X-Uploader-Name", uploaderName.trim() || "anonymous");
       xhr.setRequestHeader(
         "Content-Type",
         task.mimeType || "application/octet-stream",
@@ -359,7 +360,7 @@ export default function Dashboard() {
           fileName: task.fileName,
           mimeType: task.mimeType || "application/octet-stream",
           totalSize: task.fileSize,
-          uploaderName: "anonymous",
+          uploaderName: uploaderName.trim() || "anonymous",
         }),
       });
       if (!sessionRes.ok) throw new Error("Failed to create session");
@@ -733,6 +734,20 @@ export default function Dashboard() {
           onDrop={handleDrop}
           onChange={handleChange}
         />
+
+        <div className="flex items-center gap-3 -mt-8 mb-12">
+          <label className="text-xs font-medium text-gray-500 dark:text-gray-500 shrink-0">
+            Your name
+          </label>
+          <input
+            type="text"
+            value={uploaderName}
+            onChange={(e) => setUploaderName(e.target.value)}
+            placeholder="anonymous"
+            maxLength={64}
+            className="flex-1 max-w-xs h-8 px-3 text-sm rounded-lg border border-gray-200 dark:border-white/8 bg-white dark:bg-[#111111] text-gray-900 dark:text-gray-100 placeholder:text-gray-300 dark:placeholder:text-gray-600 focus:outline-none focus:border-gray-400 dark:focus:border-white/25 transition-colors"
+          />
+        </div>
 
         <UploadProgressList tasks={uploadTasks} onCancel={handleCancelUpload} />
         <DeleteProgressList tasks={deleteTasks} />
