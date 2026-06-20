@@ -1,10 +1,8 @@
 import {
-  Square,
   Trash2,
   ChevronDown,
   LayoutGrid,
   List,
-  SquareCheck,
   ArrowUpDown,
   Clock,
   HardDrive,
@@ -12,6 +10,9 @@ import {
   ArrowDown,
   ArrowUp,
   Check,
+  X,
+  SquareCheck,
+  Square,
 } from "lucide-react";
 import { Button, Dropdown, ButtonGroup, Label } from "@heroui/react";
 import { SortOption } from "../../types";
@@ -23,6 +24,10 @@ const SORT_LABELS: Record<SortOption, string> = {
   "size-asc": "Size",
   "name-desc": "Name",
   "name-asc": "Name",
+  "type-desc": "Type",
+  "type-asc": "Type",
+  "uploader-desc": "Uploader",
+  "uploader-asc": "Uploader",
 };
 
 type FileToolbarProps = {
@@ -31,6 +36,7 @@ type FileToolbarProps = {
   isAllSelected: boolean;
   onToggleSelectAll: () => void;
   onBulkDelete: () => void;
+  onClearSelection: () => void;
   viewMode: "grid" | "list";
   setViewMode: (mode: "grid" | "list") => void;
   sortOption: SortOption;
@@ -43,6 +49,7 @@ export function FileToolbar({
   isAllSelected,
   onToggleSelectAll,
   onBulkDelete,
+  onClearSelection,
   viewMode,
   setViewMode,
   sortOption,
@@ -50,16 +57,16 @@ export function FileToolbar({
 }: FileToolbarProps) {
   return (
     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 select-none">
-      <div className="flex flex-wrap items-center gap-4">
+      <div className="flex flex-wrap items-center gap-3">
         <h2 className="text-xl sm:text-2xl font-semibold flex items-center gap-3">
           Your Files
-          <span className="text-sm font-normal  text-gray-600 dark:text-gray-500 bg-gray-100 dark:bg-[#111111] border border-gray-200 dark:border-[#222222] px-3 py-1 rounded-lg">
+          <span className="text-sm font-normal text-gray-600 dark:text-gray-500 bg-gray-100 dark:bg-[#111111] border border-gray-200 dark:border-[#222222] px-3 py-1 rounded-lg">
             {filesCount}
           </span>
         </h2>
 
         {filesCount > 0 && (
-          <div className="flex flex-wrap items-center gap-2 sm:gap-3 border-[#222222] w-full sm:w-auto">
+          <div className="flex items-center gap-2">
             <Button
               onPress={onToggleSelectAll}
               variant="ghost"
@@ -74,13 +81,27 @@ export function FileToolbar({
             </Button>
 
             {selectedCount > 0 && (
-              <Button
-                onPress={onBulkDelete}
-                className="dark:bg-red-700 text-white dark:hover:bg-red-700/80 rounded-lg h-10 px-4 bg-red-600 hover:bg-red-600/80 "
-              >
-                <Trash2 className="w-4 h-4" />
-                Delete ({selectedCount})
-              </Button>
+              <>
+                <span className="text-sm text-gray-400 dark:text-gray-500">
+                  {selectedCount} selected
+                </span>
+                <Button
+                  isIconOnly
+                  onPress={onClearSelection}
+                  variant="ghost"
+                  className="h-7 w-7 min-w-7 text-gray-400 hover:text-gray-700 dark:hover:text-white rounded"
+                  aria-label="Clear selection"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </Button>
+                <Button
+                  onPress={onBulkDelete}
+                  className="dark:bg-red-700 text-white dark:hover:bg-red-700/80 rounded-lg h-10 px-4 bg-red-600 hover:bg-red-600/80"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Delete ({selectedCount})
+                </Button>
+              </>
             )}
           </div>
         )}
@@ -110,7 +131,9 @@ export function FileToolbar({
                       ? Clock
                       : val.startsWith("size")
                         ? HardDrive
-                        : Type;
+                        : val.startsWith("uploader")
+                          ? Type
+                          : Type;
                     const DirIcon = val.endsWith("desc") ? ArrowDown : ArrowUp;
                     return (
                       <Dropdown.Item key={val} id={val} textValue={label}>

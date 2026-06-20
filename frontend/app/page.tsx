@@ -7,6 +7,7 @@ import {
   Trash2,
   ArrowDown,
   ArrowUp,
+  X,
 } from "lucide-react";
 import { FileData, UploadTask, DeleteTask, SortOption } from "../types";
 import { Header } from "../components/Header/Header";
@@ -33,12 +34,17 @@ export default function Dashboard() {
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
   const [previewModalOpen, setPreviewModalOpen] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewFile, setPreviewFile] = useState<FileData | null>(null);
   const [appConfig, setAppConfig] = useState<{
     apiUrl: string;
     accessKey: string;
     auth?: string;
   } | null>(null);
-  const appConfigRef = useRef<{ apiUrl: string; accessKey: string; auth?: string } | null>(null);
+  const appConfigRef = useRef<{
+    apiUrl: string;
+    accessKey: string;
+    auth?: string;
+  } | null>(null);
 
   const [confirmModalOpen, setConfirmModalOpen] = useState(false);
   const [confirmAction, setConfirmAction] = useState<{
@@ -51,6 +57,9 @@ export default function Dashboard() {
   const [fileToEdit, setFileToEdit] = useState<FileData | null>(null);
 
   const [sortOption, setSortOption] = useState<SortOption>("date-desc");
+  const [uploaderName, setUploaderName] = useState("");
+
+  const getExt = (name: string) => name.split(".").pop()?.toLowerCase() ?? "";
 
   const sortedFiles = [...files].sort((a, b) => {
     switch (sortOption) {
@@ -70,14 +79,24 @@ export default function Dashboard() {
         return a.originalName.localeCompare(b.originalName);
       case "name-desc":
         return b.originalName.localeCompare(a.originalName);
+      case "type-asc":
+        return getExt(a.originalName).localeCompare(getExt(b.originalName));
+      case "type-desc":
+        return getExt(b.originalName).localeCompare(getExt(a.originalName));
+      case "uploader-asc":
+        return (a.uploaderName || "").localeCompare(b.uploaderName || "");
+      case "uploader-desc":
+        return (b.uploaderName || "").localeCompare(a.uploaderName || "");
       default:
         return 0;
     }
   });
 
-
-
-  const fetchFiles = async (cfg?: { apiUrl: string; accessKey: string; auth?: string }) => {
+  const fetchFiles = async (cfg?: {
+    apiUrl: string;
+    accessKey: string;
+    auth?: string;
+  }) => {
     try {
       setError(null);
       const config = cfg ?? appConfig;
@@ -227,9 +246,12 @@ export default function Dashboard() {
     if (!task.file) return;
 
     const cfg = appConfigRef.current;
-    const apiUrl = cfg?.apiUrl || process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+    const apiUrl =
+      cfg?.apiUrl || process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
     const token = cfg?.auth || cfg?.accessKey;
-    const authHeader: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+    const authHeader: Record<string, string> = token
+      ? { Authorization: `Bearer ${token}` }
+      : {};
 
     const SPEED_SAMPLES = 10;
     const smoothSpeed = (samples: number[], newSample: number): number[] => {
@@ -259,7 +281,13 @@ export default function Dashboard() {
           setUploadTasks((prev) =>
             prev.map((t) =>
               t.id === task.id
-                ? { ...t, progress: Math.round((e.loaded / e.total) * 100), uploadedBytes: e.loaded, speed, speedSamples: samples }
+                ? {
+                    ...t,
+                    progress: Math.round((e.loaded / e.total) * 100),
+                    uploadedBytes: e.loaded,
+                    speed,
+                    speedSamples: samples,
+                  }
                 : t,
             ),
           );
@@ -270,15 +298,23 @@ export default function Dashboard() {
         xhrMap.current.delete(task.id);
         if (xhr.status >= 200 && xhr.status < 300) {
           setUploadTasks((prev) =>
-            prev.map((t) => (t.id === task.id ? { ...t, status: "success", progress: 100 } : t)),
+            prev.map((t) =>
+              t.id === task.id ? { ...t, status: "success", progress: 100 } : t,
+            ),
           );
-          setTimeout(() => setUploadTasks((prev) => prev.filter((t) => t.id !== task.id)), 150);
+          setTimeout(
+            () =>
+              setUploadTasks((prev) => prev.filter((t) => t.id !== task.id)),
+            150,
+          );
           await fetchFiles();
         } else {
           setUploadTasks((prev) =>
             prev.map((t) => (t.id === task.id ? { ...t, status: "error" } : t)),
           );
-          toast(`อัปโหลดไฟล์ ${task.fileName} ไม่สำเร็จ`, { variant: "danger" });
+          toast(`อัปโหลดไฟล์ ${task.fileName} ไม่สำเร็จ`, {
+            variant: "danger",
+          });
         }
       });
 
@@ -299,15 +335,22 @@ export default function Dashboard() {
       xhr.withCredentials = true;
       if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
       xhr.setRequestHeader("X-File-Name", encodeURIComponent(task.fileName));
-      xhr.setRequestHeader("X-Uploader-Name", "anonymous");
-      xhr.setRequestHeader("Content-Type", task.mimeType || "application/octet-stream");
+      xhr.setRequestHeader("X-Uploader-Name", uploaderName.trim() || "anonymous");
+      xhr.setRequestHeader(
+        "Content-Type",
+        task.mimeType || "application/octet-stream",
+      );
       xhr.send(task.file);
       return;
     }
 
     // Large files — chunked upload via session API
     const abortRef = { aborted: false };
-    xhrMap.current.set(task.id, { abort: () => { abortRef.aborted = true; } } as XMLHttpRequest);
+    xhrMap.current.set(task.id, {
+      abort: () => {
+        abortRef.aborted = true;
+      },
+    } as XMLHttpRequest);
 
     try {
       // Create session
@@ -318,7 +361,7 @@ export default function Dashboard() {
           fileName: task.fileName,
           mimeType: task.mimeType || "application/octet-stream",
           totalSize: task.fileSize,
-          uploaderName: "anonymous",
+          uploaderName: uploaderName.trim() || "anonymous",
         }),
       });
       if (!sessionRes.ok) throw new Error("Failed to create session");
@@ -339,7 +382,10 @@ export default function Dashboard() {
           return;
         }
 
-        const chunk = task.file.slice(offset, Math.min(offset + CHUNK_SIZE, task.fileSize));
+        const chunk = task.file.slice(
+          offset,
+          Math.min(offset + CHUNK_SIZE, task.fileSize),
+        );
         const end = offset + chunk.size - 1;
 
         // Use XHR for this chunk to get upload progress
@@ -360,7 +406,15 @@ export default function Dashboard() {
               setUploadTasks((prev) =>
                 prev.map((t) =>
                   t.id === task.id
-                    ? { ...t, progress: Math.round((uploadedBytes / task.fileSize) * 100), uploadedBytes, speed, speedSamples: samples }
+                    ? {
+                        ...t,
+                        progress: Math.round(
+                          (uploadedBytes / task.fileSize) * 100,
+                        ),
+                        uploadedBytes,
+                        speed,
+                        speedSamples: samples,
+                      }
                     : t,
                 ),
               );
@@ -371,7 +425,9 @@ export default function Dashboard() {
             if (xhr.status >= 200 && xhr.status < 300) resolve();
             else reject(new Error(`Chunk failed: ${xhr.status}`));
           });
-          xhr.addEventListener("error", () => reject(new Error("Network error")));
+          xhr.addEventListener("error", () =>
+            reject(new Error("Network error")),
+          );
           xhr.addEventListener("abort", () => {
             abortRef.aborted = true;
             resolve();
@@ -381,7 +437,10 @@ export default function Dashboard() {
           xhr.withCredentials = true;
           if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
           xhr.setRequestHeader("Content-Type", "application/octet-stream");
-          xhr.setRequestHeader("Content-Range", `bytes ${offset}-${end}/${task.fileSize}`);
+          xhr.setRequestHeader(
+            "Content-Range",
+            `bytes ${offset}-${end}/${task.fileSize}`,
+          );
           xhr.send(chunk);
         });
 
@@ -394,9 +453,14 @@ export default function Dashboard() {
 
       xhrMap.current.delete(task.id);
       setUploadTasks((prev) =>
-        prev.map((t) => (t.id === task.id ? { ...t, status: "success", progress: 100 } : t)),
+        prev.map((t) =>
+          t.id === task.id ? { ...t, status: "success", progress: 100 } : t,
+        ),
       );
-      setTimeout(() => setUploadTasks((prev) => prev.filter((t) => t.id !== task.id)), 150);
+      setTimeout(
+        () => setUploadTasks((prev) => prev.filter((t) => t.id !== task.id)),
+        150,
+      );
       await fetchFiles();
     } catch (err) {
       console.error(err);
@@ -414,7 +478,10 @@ export default function Dashboard() {
     const task = uploadTasks.find((t) => t.id === taskId);
     if (task?.sessionId) {
       const cfg = appConfigRef.current;
-      const apiUrl = cfg?.apiUrl || process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+      const apiUrl =
+        cfg?.apiUrl ||
+        process.env.NEXT_PUBLIC_API_URL ||
+        "http://localhost:3001";
       const token = cfg?.auth || cfg?.accessKey;
       fetch(`${apiUrl}/files/upload/session/${task.sessionId}`, {
         method: "DELETE",
@@ -578,21 +645,36 @@ export default function Dashboard() {
     setConfirmModalOpen(true);
   };
 
-  const toggleSelection = (id: string) => {
-    const newSelected = new Set(selectedFiles);
-    if (newSelected.has(id)) {
-      newSelected.delete(id);
-    } else {
-      newSelected.add(id);
-    }
-    setSelectedFiles(newSelected);
-  };
+  const anchorId = useRef<string | null>(null);
 
-  const toggleSelectAll = () => {
-    if (selectedFiles.size === files.length) {
-      setSelectedFiles(new Set());
+  const handleFileClick = (id: string, multi: boolean, range: boolean) => {
+    if (range && anchorId.current) {
+      const ids = sortedFiles.map((f) => f.id);
+      const anchorIdx = ids.indexOf(anchorId.current);
+      const targetIdx = ids.indexOf(id);
+      if (anchorIdx !== -1 && targetIdx !== -1) {
+        const [from, to] = anchorIdx < targetIdx ? [anchorIdx, targetIdx] : [targetIdx, anchorIdx];
+        const rangeIds = ids.slice(from, to + 1);
+        setSelectedFiles((prev) => {
+          const next = new Set(prev);
+          rangeIds.forEach((rid) => next.add(rid));
+          return next;
+        });
+        return;
+      }
+    }
+    if (multi) {
+      const newSelected = new Set(selectedFiles);
+      if (newSelected.has(id)) {
+        newSelected.delete(id);
+      } else {
+        newSelected.add(id);
+      }
+      anchorId.current = id;
+      setSelectedFiles(newSelected);
     } else {
-      setSelectedFiles(new Set(files.map((f) => f.id)));
+      anchorId.current = id;
+      setSelectedFiles(selectedFiles.size === 1 && selectedFiles.has(id) ? new Set() : new Set([id]));
     }
   };
 
@@ -618,6 +700,7 @@ export default function Dashboard() {
           window.open(data.url, "_blank");
         } else if (type === "preview") {
           setPreviewUrl(data.url);
+          setPreviewFile(file);
           setPreviewModalOpen(true);
         }
       } else {
@@ -668,6 +751,31 @@ export default function Dashboard() {
           onChange={handleChange}
         />
 
+        <div className="flex items-center gap-3 -mt-8 mb-12">
+          <label className="text-xs font-medium text-gray-500 dark:text-gray-500 shrink-0">
+            Your name
+          </label>
+          <div className="relative flex items-center max-w-xs flex-1">
+            <input
+              type="text"
+              value={uploaderName}
+              onChange={(e) => setUploaderName(e.target.value)}
+              placeholder="anonymous"
+              maxLength={64}
+              className="w-full h-8 pl-3 pr-7 text-sm rounded-lg border border-gray-200 dark:border-white/8 bg-white dark:bg-[#111111] text-gray-900 dark:text-gray-100 placeholder:text-gray-300 dark:placeholder:text-gray-600 focus:outline-none focus:border-gray-400 dark:focus:border-white/25 transition-colors"
+            />
+            {uploaderName && (
+              <button
+                onClick={() => setUploaderName("")}
+                className="absolute right-2 text-gray-300 hover:text-gray-600 dark:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                aria-label="Clear"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+        </div>
+
         <UploadProgressList tasks={uploadTasks} onCancel={handleCancelUpload} />
         <DeleteProgressList tasks={deleteTasks} />
 
@@ -675,11 +783,14 @@ export default function Dashboard() {
           <FileToolbar
             filesCount={files.length}
             selectedCount={selectedFiles.size}
-            isAllSelected={
-              files.length > 0 && selectedFiles.size === files.length
+            isAllSelected={files.length > 0 && selectedFiles.size === files.length}
+            onToggleSelectAll={() =>
+              selectedFiles.size === files.length
+                ? setSelectedFiles(new Set())
+                : setSelectedFiles(new Set(files.map((f) => f.id)))
             }
-            onToggleSelectAll={toggleSelectAll}
             onBulkDelete={handleBulkDelete}
+            onClearSelection={() => setSelectedFiles(new Set())}
             viewMode={viewMode}
             setViewMode={setViewMode}
             sortOption={sortOption}
@@ -688,7 +799,6 @@ export default function Dashboard() {
 
           {viewMode === "list" && files.length > 0 && !loading && !error && (
             <div className="hidden md:flex items-center gap-3 md:gap-4 px-3 md:px-4 py-2 mt-4 mb-2 text-[10px] font-semibold text-gray-500 uppercase tracking-widest border-b border-gray-200 dark:border-white/5 select-none">
-              <div className="w-4 h-4 md:w-5 md:h-5 shrink-0" />
               <div className="flex-1 min-w-0 flex items-center justify-between gap-1 md:gap-4">
                 <div
                   className="flex-1 min-w-0 flex items-center gap-1 cursor-pointer hover:text-gray-900 dark:hover:text-white transition-colors"
@@ -707,8 +817,40 @@ export default function Dashboard() {
                     ))}
                 </div>
                 <div className="hidden md:flex shrink-0 w-100 items-center gap-4">
-                  <div className="w-16">Type</div>
-                  <div className="flex-1">Uploader</div>
+                  <div
+                    className="w-16 flex items-center gap-1 cursor-pointer hover:text-gray-900 dark:hover:text-white transition-colors"
+                    onClick={() =>
+                      setSortOption(
+                        sortOption === "type-desc" ? "type-asc" : "type-desc",
+                      )
+                    }
+                  >
+                    Type
+                    {sortOption.startsWith("type") &&
+                      (sortOption.endsWith("desc") ? (
+                        <ArrowDown className="w-3 h-3" />
+                      ) : (
+                        <ArrowUp className="w-3 h-3" />
+                      ))}
+                  </div>
+                  <div
+                    className="flex-1 flex items-center gap-1 cursor-pointer hover:text-gray-900 dark:hover:text-white transition-colors"
+                    onClick={() =>
+                      setSortOption(
+                        sortOption === "uploader-desc"
+                          ? "uploader-asc"
+                          : "uploader-desc",
+                      )
+                    }
+                  >
+                    Uploader
+                    {sortOption.startsWith("uploader") &&
+                      (sortOption.endsWith("desc") ? (
+                        <ArrowDown className="w-3 h-3" />
+                      ) : (
+                        <ArrowUp className="w-3 h-3" />
+                      ))}
+                  </div>
                   <div
                     className="w-20 flex justify-end items-center gap-1 cursor-pointer hover:text-gray-900 dark:hover:text-white transition-colors"
                     onClick={() =>
@@ -794,7 +936,7 @@ export default function Dashboard() {
                   file={file}
                   viewMode={viewMode}
                   isSelected={selectedFiles.has(file.id)}
-                  onToggleSelection={toggleSelection}
+                  onFileClick={handleFileClick}
                   onActionRequest={handleActionRequest}
                   onDelete={handleDelete}
                 />
@@ -807,7 +949,11 @@ export default function Dashboard() {
       <PreviewModal
         isOpen={previewModalOpen}
         previewUrl={previewUrl}
-        onClose={() => setPreviewModalOpen(false)}
+        file={previewFile}
+        onClose={() => {
+          setPreviewModalOpen(false);
+          setPreviewFile(null);
+        }}
       />
 
       <ConfirmModal

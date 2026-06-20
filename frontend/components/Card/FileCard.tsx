@@ -1,4 +1,3 @@
-import { Square, SquareCheck } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { format, render, cancel } from "timeago.js";
 import { FileData } from "../../types";
@@ -38,7 +37,7 @@ type FileCardProps = {
   file: FileData;
   viewMode: "grid" | "list";
   isSelected: boolean;
-  onToggleSelection: (id: string) => void;
+  onFileClick: (id: string, multi: boolean, range: boolean) => void;
   onActionRequest: (
     type: "download" | "preview" | "edit",
     file: FileData,
@@ -50,37 +49,25 @@ export function FileCard({
   file,
   viewMode,
   isSelected,
-  onToggleSelection,
+  onFileClick,
   onActionRequest,
   onDelete,
 }: FileCardProps) {
+  const handleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onFileClick(file.id, e.ctrlKey || e.metaKey, e.shiftKey);
+  };
+
   if (viewMode === "list") {
     return (
       <div
-        onClick={(e) => {
-          e.stopPropagation();
-          onToggleSelection(file.id);
-        }}
+        onClick={handleClick}
         className={`group flex items-center gap-3 md:gap-4 px-3 py-2.5 md:px-4 md:py-3 rounded-lg border cursor-pointer transition-colors w-full select-none overflow-hidden ${
           isSelected
             ? "border-blue-500 bg-blue-50 dark:border-white dark:bg-[#1a1a1a]"
             : "border-gray-200 bg-[#F5FEFD] hover:bg-[#F5FEFD] hover:border-gray-300 dark:border-[#222222] dark:bg-[#111111] dark:hover:bg-[#151515] dark:hover:border-[#333333]"
         }`}
       >
-        <div
-          onClick={(e) => {
-            e.stopPropagation();
-            onToggleSelection(file.id);
-          }}
-          className="cursor-pointer text-gray-400 hover:text-gray-900 dark:text-gray-500 dark:hover:text-white transition-colors shrink-0"
-        >
-          {isSelected ? (
-            <SquareCheck className="w-4 h-4 md:w-5 md:h-5 text-blue-600 dark:text-white" />
-          ) : (
-            <Square className="w-4 h-4 md:w-5 md:h-5" />
-          )}
-        </div>
-
         <div className="flex-1 min-w-0 flex flex-col md:flex-row md:items-center justify-between gap-1 md:gap-4">
           <div className="flex-1 min-w-0 flex flex-col">
             <h4
@@ -114,7 +101,10 @@ export function FileCard({
           </div>
         </div>
 
-        <div className="flex justify-end shrink-0 pl-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+        <div
+          onClick={(e) => e.stopPropagation()}
+          className="flex justify-end shrink-0 pl-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
+        >
           <FileActionMenu
             file={file}
             onActionRequest={onActionRequest}
@@ -127,33 +117,17 @@ export function FileCard({
 
   return (
     <div
-      onClick={(e) => {
-        e.stopPropagation();
-        onToggleSelection(file.id);
-      }}
+      onClick={handleClick}
       className={`group flex flex-col rounded-lg border cursor-pointer transition-colors relative overflow-hidden select-none ${
         isSelected
           ? "border-blue-500 bg-blue-50 dark:border-white dark:bg-[#1a1a1a]"
           : "border-gray-200 bg-[#F5FEFD] hover:bg-[#F5FEFD] hover:border-gray-300 dark:border-[#222222] dark:bg-[#111111] dark:hover:bg-[#151515] dark:hover:border-[#333333]"
       }`}
     >
-      <div className="absolute top-3 left-3 z-10">
-        <div
-          onClick={(e) => {
-            e.stopPropagation();
-            onToggleSelection(file.id);
-          }}
-          className="cursor-pointer text-gray-400 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors bg-[#F5FEFD]/80 dark:bg-[#111111]/50 rounded-md"
-        >
-          {isSelected ? (
-            <SquareCheck className="w-5 h-5 text-blue-600 dark:text-white" />
-          ) : (
-            <Square className="w-5 h-5" />
-          )}
-        </div>
-      </div>
-
-      <div className="absolute top-2 right-2 z-10 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="absolute top-2 right-2 z-10 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
+      >
         <FileActionMenu
           file={file}
           onActionRequest={onActionRequest}
@@ -162,7 +136,7 @@ export function FileCard({
         />
       </div>
 
-      <div className="p-4 pt-10 flex flex-col flex-1">
+      <div className="p-4 pt-4 flex flex-col flex-1">
         <h4
           className="font-medium text-sm text-gray-900 dark:text-gray-200 truncate mb-1"
           title={file.originalName}
