@@ -128,6 +128,10 @@ export const fileController = (
         }),
       },
     )
+    .delete("/upload/session/:sessionId", async ({ params }) => {
+      await fileService.cancelUploadSession(params.sessionId);
+      return { success: true };
+    })
     .get("/upload/session/:sessionId", async ({ params, set }) => {
       const session = await fileService.getUploadSession(params.sessionId);
       if (!session) {

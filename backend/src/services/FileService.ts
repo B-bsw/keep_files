@@ -62,6 +62,16 @@ export class FileService {
     return true;
   }
 
+  public async cancelUploadSession(sessionId: string) {
+    const session = await this.getUploadSession(sessionId);
+    if (!session) return;
+    const tempPath = path.join(config.uploadDir, `tmp_${session.objectKey}`);
+    try {
+      if (existsSync(tempPath)) await unlink(tempPath);
+    } catch {}
+    await prisma.uploadSession.delete({ where: { id: sessionId } });
+  }
+
   public async saveFileRecord({ originalName, objectKey, size, mimeType, uploaderName }: {
     originalName: string;
     objectKey: string;

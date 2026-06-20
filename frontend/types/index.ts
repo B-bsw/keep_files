@@ -15,8 +15,10 @@ export type UploadTask = {
   mimeType: string;
   progress: number;
   status: "uploading" | "success" | "error";
+  sessionId?: string;
   uploadedBytes?: number;
-  speed?: number; // bytes per second
+  speed?: number; // bytes per second (smoothed)
+  speedSamples?: number[];
 };
 
 export type DeleteTask = {

@@ -26,6 +26,24 @@ export async function GET(_: Request, { params }: { params: Promise<{ sessionId:
   }
 }
 
+export async function DELETE(_: Request, { params }: { params: Promise<{ sessionId: string }> }) {
+  const { sessionId } = await params;
+  const { authCookie, accessKey, apiUrl } = await getAuth();
+
+  try {
+    const res = await fetch(`${apiUrl}/files/upload/session/${sessionId}`, {
+      method: 'DELETE',
+      headers: {
+        ...(authCookie ? { Cookie: `auth=${authCookie}` } : { 'x-access-key': accessKey || '' }),
+      },
+    });
+    const data = await res.json();
+    return NextResponse.json(data, { status: res.status });
+  } catch {
+    return NextResponse.json({ error: 'Failed to cancel session' }, { status: 500 });
+  }
+}
+
 export async function PUT(request: Request, { params }: { params: Promise<{ sessionId: string }> }) {
   const { sessionId } = await params;
   const { authCookie, accessKey, apiUrl } = await getAuth();

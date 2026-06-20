@@ -231,24 +231,35 @@ export default function Dashboard() {
     const token = cfg?.auth || cfg?.accessKey;
     const authHeader: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
 
+    const SPEED_SAMPLES = 10;
+    const smoothSpeed = (samples: number[], newSample: number): number[] => {
+      const next = [...samples, newSample].slice(-SPEED_SAMPLES);
+      return next;
+    };
+    const avgSpeed = (samples: number[]) =>
+      samples.length ? samples.reduce((a, b) => a + b, 0) / samples.length : 0;
+
     // Small files — send directly via stream (no chunking needed)
     if (task.fileSize <= CHUNK_SIZE) {
       const xhr = new XMLHttpRequest();
       xhrMap.current.set(task.id, xhr);
       let lastLoaded = 0;
       let lastTime = Date.now();
+      let samples: number[] = [];
 
       xhr.upload.addEventListener("progress", (e) => {
         if (e.lengthComputable) {
           const now = Date.now();
           const dt = (now - lastTime) / 1000;
-          const speed = dt > 0 ? (e.loaded - lastLoaded) / dt : 0;
+          const raw = dt > 0 ? (e.loaded - lastLoaded) / dt : 0;
           lastLoaded = e.loaded;
           lastTime = now;
+          if (raw > 0) samples = smoothSpeed(samples, raw);
+          const speed = avgSpeed(samples);
           setUploadTasks((prev) =>
             prev.map((t) =>
               t.id === task.id
-                ? { ...t, progress: Math.round((e.loaded / e.total) * 100), uploadedBytes: e.loaded, speed }
+                ? { ...t, progress: Math.round((e.loaded / e.total) * 100), uploadedBytes: e.loaded, speed, speedSamples: samples }
                 : t,
             ),
           );
@@ -313,8 +324,13 @@ export default function Dashboard() {
       if (!sessionRes.ok) throw new Error("Failed to create session");
       const { sessionId } = await sessionRes.json();
 
+      setUploadTasks((prev) =>
+        prev.map((t) => (t.id === task.id ? { ...t, sessionId } : t)),
+      );
+
       let lastTime = Date.now();
       let lastBytes = 0;
+      let samples: number[] = [];
 
       for (let offset = 0; offset < task.fileSize; offset += CHUNK_SIZE) {
         if (abortRef.aborted) {
@@ -336,13 +352,15 @@ export default function Dashboard() {
               const now = Date.now();
               const dt = (now - lastTime) / 1000;
               const uploadedBytes = offset + e.loaded;
-              const speed = dt > 0 ? (uploadedBytes - lastBytes) / dt : 0;
+              const raw = dt > 0 ? (uploadedBytes - lastBytes) / dt : 0;
               lastTime = now;
               lastBytes = uploadedBytes;
+              if (raw > 0) samples = smoothSpeed(samples, raw);
+              const speed = avgSpeed(samples);
               setUploadTasks((prev) =>
                 prev.map((t) =>
                   t.id === task.id
-                    ? { ...t, progress: Math.round((uploadedBytes / task.fileSize) * 100), uploadedBytes, speed }
+                    ? { ...t, progress: Math.round((uploadedBytes / task.fileSize) * 100), uploadedBytes, speed, speedSamples: samples }
                     : t,
                 ),
               );
@@ -392,6 +410,17 @@ export default function Dashboard() {
 
   const handleCancelUpload = (taskId: string) => {
     xhrMap.current.get(taskId)?.abort();
+    // Clean up session on server if this was a chunked upload
+    const task = uploadTasks.find((t) => t.id === taskId);
+    if (task?.sessionId) {
+      const cfg = appConfigRef.current;
+      const apiUrl = cfg?.apiUrl || process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+      const token = cfg?.auth || cfg?.accessKey;
+      fetch(`${apiUrl}/files/upload/session/${task.sessionId}`, {
+        method: "DELETE",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      }).catch(() => {});
+    }
   };
 
   const handleDelete = (id: string) => {
