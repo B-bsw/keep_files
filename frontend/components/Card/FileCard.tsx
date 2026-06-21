@@ -35,7 +35,7 @@ const getFileExtensionText = (fileName: string) => {
 
 type FileCardProps = {
   file: FileData;
-  viewMode: "grid" | "list";
+  viewMode: "grid" | "list" | "columns";
   isSelected: boolean;
   onFileClick: (id: string, multi: boolean, range: boolean) => void;
   onActionRequest: (

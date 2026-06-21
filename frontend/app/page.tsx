@@ -19,6 +19,7 @@ import { FileCard } from "../components/Card/FileCard";
 import { PreviewModal } from "../components/Modal/PreviewModal";
 import { ConfirmModal } from "../components/Modal/ConfirmModal";
 import { EditModal } from "../components/Modal/EditModal";
+import { FileExplorer } from "../components/Explorer/FileExplorer";
 import { Button, toast } from "@heroui/react";
 
 export default function Dashboard() {
@@ -30,7 +31,7 @@ export default function Dashboard() {
   const xhrMap = useRef<Map<string, XMLHttpRequest>>(new Map());
   const [dragActive, setDragActive] = useState(false);
 
-  const [viewMode, setViewMode] = useState<"grid" | "list">("list");
+  const [viewMode, setViewMode] = useState<"grid" | "list" | "columns">("columns");
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
   const [previewModalOpen, setPreviewModalOpen] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -741,7 +742,7 @@ export default function Dashboard() {
     <div className="min-h-screen bg-[#F5FEFD] dark:bg-[#050505] text-gray-900 dark:text-white transition-colors duration-300">
       <Header onLogout={handleLogout} />
 
-      <main className="max-w-4xl mx-auto px-6 py-6">
+      <main className={`mx-auto px-6 py-6 max-w-6xl`}>
         <UploadArea
           dragActive={dragActive}
           onDragEnter={handleDrag}
@@ -922,6 +923,17 @@ export default function Dashboard() {
                 No files uploaded yet.
               </p>
             </div>
+          ) : viewMode === "columns" ? (
+            <FileExplorer
+              files={files}
+              sortedFiles={sortedFiles}
+              selectedFiles={selectedFiles}
+              onFileClick={handleFileClick}
+              onActionRequest={handleActionRequest}
+              onDelete={handleDelete}
+              sortOption={sortOption}
+              setSortOption={setSortOption}
+            />
           ) : (
             <div
               className={

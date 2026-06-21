@@ -1,0 +1,26 @@
+diff --git a/dist/index.cjs b/dist/index.cjs
+index a8fcacabb9f6ad22ef339370103007a2bac27415..8a0badc5fa3f41552823101a585361de7a0007d4 100644
+--- a/dist/index.cjs
++++ b/dist/index.cjs
+@@ -28960,7 +28960,7 @@ function XlsxGrid({
+       )
+     }
+   );
+-  return /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: { backgroundColor: palette.canvas, display: "flex", flex: 1, minHeight: 0, minWidth: 0 }, children: renderScroller ? renderScroller({ children: scrollerContent, viewportProps: scrollerViewportProps }) : /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { ...scrollerViewportProps, children: scrollerContent }, activeTabIndex) });
++  return /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: { backgroundColor: palette.canvas, display: "flex", flex: 1, minHeight: 0, minWidth: 0 }, children: renderScroller ? renderScroller({ children: scrollerContent, viewportProps: scrollerViewportProps }) : /* @__PURE__ */ require("react").createElement("div", Object.assign({ key: activeTabIndex }, scrollerViewportProps, { children: scrollerContent })) });
+ }
+ function XlsxViewerInner({
+   allowResizeInReadOnly = false,
+diff --git a/dist/index.js b/dist/index.js
+index 8c5f63bec3a7e83ab6cba2556f00cf24bc9b3e2b..c7cbf48f3fafbc180a4bf8adad30fc0dba4511c8 100644
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -28926,7 +28926,7 @@ function XlsxGrid({
+       )
+     }
+   );
+-  return /* @__PURE__ */ jsx3("div", { style: { backgroundColor: palette.canvas, display: "flex", flex: 1, minHeight: 0, minWidth: 0 }, children: renderScroller ? renderScroller({ children: scrollerContent, viewportProps: scrollerViewportProps }) : /* @__PURE__ */ jsx3("div", { ...scrollerViewportProps, children: scrollerContent }, activeTabIndex) });
++  return /* @__PURE__ */ jsx3("div", { style: { backgroundColor: palette.canvas, display: "flex", flex: 1, minHeight: 0, minWidth: 0 }, children: renderScroller ? renderScroller({ children: scrollerContent, viewportProps: scrollerViewportProps }) : /* @__PURE__ */ React.createElement("div", Object.assign({ key: activeTabIndex }, scrollerViewportProps, { children: scrollerContent })) });
+ }
+ function XlsxViewerInner({
+   allowResizeInReadOnly = false,

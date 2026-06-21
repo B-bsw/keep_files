@@ -3,6 +3,7 @@ import {
   ChevronDown,
   LayoutGrid,
   List,
+  Columns3,
   ArrowUpDown,
   Clock,
   HardDrive,
@@ -37,8 +38,8 @@ type FileToolbarProps = {
   onToggleSelectAll: () => void;
   onBulkDelete: () => void;
   onClearSelection: () => void;
-  viewMode: "grid" | "list";
-  setViewMode: (mode: "grid" | "list") => void;
+  viewMode: "grid" | "list" | "columns";
+  setViewMode: (mode: "grid" | "list" | "columns") => void;
   sortOption: SortOption;
   setSortOption: (opt: SortOption) => void;
 };
@@ -108,7 +109,7 @@ export function FileToolbar({
       </div>
 
       <div className="flex flex-wrap items-center gap-3 w-full md:w-auto mt-2 md:mt-0">
-        <div className={viewMode === "list" ? "block md:hidden" : "block"}>
+        <div className={viewMode === "columns" ? "hidden" : viewMode === "list" ? "block md:hidden" : "block"}>
           <Dropdown>
             <Button className="bg-[#F5FEFD] dark:bg-[#111111] border border-gray-200 dark:border-[#222222] text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-[#F5FEFD] dark:hover:bg-[#151515] rounded-lg h-10 px-4 flex items-center gap-2">
               <ArrowUpDown className="w-4 h-4 opacity-70" />
@@ -173,12 +174,25 @@ export function FileToolbar({
         <ButtonGroup>
           <Button
             isIconOnly
-            onPress={() => setViewMode("grid")}
+            onPress={() => setViewMode("columns")}
             className={`border border-gray-200 dark:border-[#222222] h-10 w-10 ${
+              viewMode === "columns"
+                ? "bg-gray-100 dark:bg-[#222222] text-gray-900 dark:text-white"
+                : "bg-[#F5FEFD] dark:bg-[#111111] text-gray-500 dark:text-gray-400 hover:bg-[#F5FEFD] dark:hover:bg-[#151515]"
+            }`}
+            aria-label="Columns view"
+          >
+            <Columns3 className="w-4 h-4" />
+          </Button>
+          <Button
+            isIconOnly
+            onPress={() => setViewMode("grid")}
+            className={`border border-gray-200 dark:border-[#222222] border-l-0 h-10 w-10 ${
               viewMode === "grid"
                 ? "bg-gray-100 dark:bg-[#222222] text-gray-900 dark:text-white"
                 : "bg-[#F5FEFD] dark:bg-[#111111] text-gray-500 dark:text-gray-400 hover:bg-[#F5FEFD] dark:hover:bg-[#151515]"
             }`}
+            aria-label="Grid view"
           >
             <LayoutGrid className="w-4 h-4" />
           </Button>
@@ -190,6 +204,7 @@ export function FileToolbar({
                 ? "bg-gray-100 dark:bg-[#222222] text-gray-900 dark:text-white"
                 : "bg-[#F5FEFD] dark:bg-[#111111] text-gray-500 dark:text-gray-400 hover:bg-[#F5FEFD] dark:hover:bg-[#151515]"
             }`}
+            aria-label="List view"
           >
             <List className="w-4 h-4" />
           </Button>
