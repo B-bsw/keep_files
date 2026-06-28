@@ -31,7 +31,7 @@ export default function Dashboard() {
   const xhrMap = useRef<Map<string, XMLHttpRequest>>(new Map());
   const [dragActive, setDragActive] = useState(false);
 
-  const [viewMode, setViewMode] = useState<"grid" | "list" | "columns">("columns");
+  const [viewMode, setViewMode] = useState<"grid" | "list" | "columns">("list");
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
   const [previewModalOpen, setPreviewModalOpen] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
