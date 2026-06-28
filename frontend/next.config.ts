@@ -6,7 +6,7 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       {
         protocol: "https",
-        hostname: "keep_file_api.b-bsw.com",
+        hostname: "keep-file-api.b-bsw.com",
         port: "",
         pathname: "/**",
       },
