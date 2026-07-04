@@ -1,10 +1,10 @@
 import { Dropdown } from "@heroui/react";
-import { MoreVertical, Eye, Pencil, Download, Trash2 } from "lucide-react";
+import { MoreVertical, Eye, Pencil, Download, Trash2, Share2, FolderInput } from "lucide-react";
 import { FileData } from "../../types";
 
 type FileActionMenuProps = {
   file: FileData;
-  onActionRequest: (type: "download" | "preview" | "edit", file: FileData) => void;
+  onActionRequest: (type: "download" | "preview" | "edit" | "share" | "move", file: FileData) => void;
   onDelete: (id: string) => void;
   className?: string;
 };
@@ -44,7 +44,23 @@ export function FileActionMenu({ file, onActionRequest, onDelete, className = ""
               <Download className="w-4 h-4 text-gray-500 dark:text-gray-400" />
               <span>Download</span>
             </Dropdown.Item>
-            
+
+            <Dropdown.Item
+              onAction={() => onActionRequest("share", file)}
+              className="flex items-center gap-2 px-2 py-1.5 hover:bg-gray-100 dark:hover:bg-[#1a1a1a] rounded-md cursor-pointer text-sm text-gray-700 dark:text-gray-200 outline-none"
+            >
+              <Share2 className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+              <span>Share</span>
+            </Dropdown.Item>
+
+            <Dropdown.Item
+              onAction={() => onActionRequest("move", file)}
+              className="flex items-center gap-2 px-2 py-1.5 hover:bg-gray-100 dark:hover:bg-[#1a1a1a] rounded-md cursor-pointer text-sm text-gray-700 dark:text-gray-200 outline-none"
+            >
+              <FolderInput className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+              <span>Move to folder</span>
+            </Dropdown.Item>
+
             <Dropdown.Item
               onAction={() => onDelete(file.id)}
               className="flex items-center gap-2 px-2 py-1.5 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-md cursor-pointer text-sm text-red-600 dark:text-red-400 outline-none"

@@ -7,14 +7,38 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Folder {
+  id        String   @id @default(uuid())
+  name      String
+  parentId  String?
+  parent    Folder?  @relation("FolderTree", fields: [parentId], references: [id])
+  children  Folder[] @relation("FolderTree")
+  files     File[]
+  createdAt DateTime @default(now())
+}
+
 model File {
-  id           String   @id @default(uuid())
+  id           String      @id @default(uuid())
   originalName String
-  objectKey    String   @unique
+  objectKey    String      @unique
   size         BigInt
   mimeType     String
-  uploadDate   DateTime @default(now())
+  uploadDate   DateTime    @default(now())
   uploaderName String?
+  folderId     String?
+  folder       Folder?     @relation(fields: [folderId], references: [id])
+  shareLinks   ShareLink[]
+}
+
+model ShareLink {
+  id         String      @id @default(uuid())
+  token      String      @unique @default(uuid())
+  fileId     String?
+  folderId   String?
+  file       File?       @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  permission String      @default("DOWNLOAD")
+  expiresAt  DateTime?
+  createdAt  DateTime    @default(now())
 }
 
 model UploadSession {

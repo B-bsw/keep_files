@@ -1,14 +1,16 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 
-export async function GET() {
+export async function GET(request: Request) {
   const cookieStore = await cookies();
   const authCookie = cookieStore.get('auth')?.value;
   const accessKey = cookieStore.get('access_key')?.value;
   const apiUrl = (process.env.API_URL || process.env.NEXT_PUBLIC_API_URL) || 'http://localhost:3001';
+  const { searchParams } = new URL(request.url);
+  const folderId = searchParams.get('folderId') || 'root';
 
   try {
-    const res = await fetch(`${apiUrl}/files`, {
+    const res = await fetch(`${apiUrl}/files?folderId=${folderId}`, {
       headers: {
         ...(authCookie ? { 'Cookie': `auth=${authCookie}` } : { 'x-access-key': accessKey || '' }),
       },

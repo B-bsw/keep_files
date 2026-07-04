@@ -21,8 +21,9 @@ export class FileService {
     }
   }
 
-  public async getAllFiles() {
+  public async getAllFiles(folderId?: string | null) {
     return prisma.file.findMany({
+      where: folderId !== undefined ? { folderId } : {},
       orderBy: { uploadDate: "desc" },
     });
   }
@@ -161,7 +162,7 @@ export class FileService {
     return { done: true, file: newFile };
   }
 
-  public async updateFile(id: string, originalName?: string, uploaderName?: string) {
+  public async updateFile(id: string, originalName?: string, uploaderName?: string, folderId?: string | null) {
     const file = await this.getFileById(id);
     if (!file) throw new Error("File not found");
 
@@ -181,6 +182,7 @@ export class FileService {
       data: {
         ...(originalName && { originalName: finalOriginalName }),
         ...(uploaderName !== undefined && { uploaderName }),
+        ...(folderId !== undefined && { folderId }),
         uploadDate: new Date(),
       },
     });

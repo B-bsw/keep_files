@@ -8,17 +8,23 @@ import {
   ArrowDown,
   ArrowUp,
   X,
+  FolderPlus,
 } from "lucide-react";
-import { FileData, UploadTask, DeleteTask, SortOption } from "../types";
+import { FileData, FolderData, UploadTask, DeleteTask, SortOption } from "../types";
 import { Header } from "../components/Header/Header";
 import { UploadArea } from "../components/UploadArea";
 import { UploadProgressList } from "../components/Progress/UploadProgressList";
 import { DeleteProgressList } from "../components/Progress/DeleteProgressList";
 import { FileToolbar } from "../components/Toolbar/FileToolbar";
 import { FileCard } from "../components/Card/FileCard";
+import { FolderCard } from "../components/Folder/FolderCard";
+import { FolderBreadcrumb } from "../components/Folder/FolderBreadcrumb";
 import { PreviewModal } from "../components/Modal/PreviewModal";
 import { ConfirmModal } from "../components/Modal/ConfirmModal";
 import { EditModal } from "../components/Modal/EditModal";
+import { ShareModal } from "../components/Modal/ShareModal";
+import { MoveToFolderModal } from "../components/Modal/MoveToFolderModal";
+import { RenameFolderModal } from "../components/Modal/RenameFolderModal";
 import { FileExplorer } from "../components/Explorer/FileExplorer";
 import { Button, toast } from "@heroui/react";
 
@@ -56,6 +62,22 @@ export default function Dashboard() {
 
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [fileToEdit, setFileToEdit] = useState<FileData | null>(null);
+
+  const [shareModalOpen, setShareModalOpen] = useState(false);
+  const [fileToShare, setFileToShare] = useState<FileData | null>(null);
+
+  const [moveModalOpen, setMoveModalOpen] = useState(false);
+  const [fileToMove, setFileToMove] = useState<FileData | null>(null);
+
+  const [folders, setFolders] = useState<FolderData[]>([]);
+  const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
+  const [breadcrumbs, setBreadcrumbs] = useState<Array<{ id: string; name: string }>>([]);
+
+  const [renameFolderOpen, setRenameFolderOpen] = useState(false);
+  const [folderToRename, setFolderToRename] = useState<FolderData | null>(null);
+
+  const [createFolderName, setCreateFolderName] = useState("");
+  const [creatingFolder, setCreatingFolder] = useState(false);
 
   const [sortOption, setSortOption] = useState<SortOption>("date-desc");
   const [uploaderName, setUploaderName] = useState("");
@@ -97,11 +119,13 @@ export default function Dashboard() {
     apiUrl: string;
     accessKey: string;
     auth?: string;
-  }) => {
+  }, folderId?: string | null) => {
     try {
       setError(null);
       const config = cfg ?? appConfig;
-      const url = config ? `${config.apiUrl}/files` : "/api/files";
+      const folder = folderId !== undefined ? folderId : currentFolderId;
+      const folderParam = folder ? `folderId=${folder}` : "folderId=root";
+      const url = config ? `${config.apiUrl}/files?${folderParam}` : `/api/files?${folderParam}`;
       const headers: HeadersInit = {};
       if (config) {
         const token = config.auth || config.accessKey;
@@ -130,15 +154,101 @@ export default function Dashboard() {
     }
   };
 
+  const fetchFolders = async (parentId: string | null = null) => {
+    const param = parentId ? `parentId=${parentId}` : "parentId=root";
+    const res = await fetch(`/api/folders?${param}`);
+    if (res.ok) setFolders(await res.json());
+  };
+
+  const navigateToFolder = async (folderId: string | null) => {
+    setCurrentFolderId(folderId);
+    setSelectedFiles(new Set());
+    setLoading(true);
+    await Promise.all([fetchFiles(undefined, folderId), fetchFolders(folderId)]);
+    if (folderId) {
+      const res = await fetch(`/api/folders/${folderId}`);
+      if (res.ok) setBreadcrumbs(await res.json());
+    } else {
+      setBreadcrumbs([]);
+    }
+  };
+
+  const handleCreateFolder = async () => {
+    const name = createFolderName.trim();
+    if (!name) return;
+    setCreatingFolder(true);
+    try {
+      const res = await fetch("/api/folders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, parentId: currentFolderId || undefined }),
+      });
+      if (res.ok) {
+        setCreateFolderName("");
+        await fetchFolders(currentFolderId);
+      } else {
+        toast("Failed to create folder", { variant: "danger" });
+      }
+    } finally {
+      setCreatingFolder(false);
+    }
+  };
+
+  const handleRenameFolder = async (id: string, name: string) => {
+    const res = await fetch(`/api/folders/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    });
+    if (res.ok) {
+      await fetchFolders(currentFolderId);
+      toast("Folder renamed");
+    } else {
+      toast("Failed to rename folder", { variant: "danger" });
+    }
+  };
+
+  const handleDeleteFolder = async (id: string) => {
+    setConfirmAction({
+      title: "Delete Folder",
+      description: "Files inside will be moved to root. Subfolders will also be deleted.",
+      onConfirm: async () => {
+        const res = await fetch(`/api/folders/${id}`, { method: "DELETE" });
+        if (res.ok) {
+          await Promise.all([fetchFolders(currentFolderId), fetchFiles(undefined, currentFolderId)]);
+          toast("Folder deleted");
+        } else {
+          toast("Failed to delete folder", { variant: "danger" });
+        }
+      },
+    });
+    setConfirmModalOpen(true);
+  };
+
+  const handleMoveFile = async (fileId: string, folderId: string | null) => {
+    const res = await fetch(`/api/files/${fileId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ folderId }),
+    });
+    if (res.ok) {
+      await fetchFiles(undefined, currentFolderId);
+      toast("File moved");
+    } else {
+      toast("Failed to move file", { variant: "danger" });
+    }
+  };
+
   useEffect(() => {
     fetch("/api/config")
       .then((res) => res.json())
       .then((data) => {
         setAppConfig(data);
         appConfigRef.current = data;
-        fetchFiles(data);
+        fetchFiles(data, null);
       })
-      .catch(() => fetchFiles());
+      .catch(() => fetchFiles(undefined, null));
+    fetchFolders(null);
   }, []);
 
   useEffect(() => {
@@ -680,12 +790,24 @@ export default function Dashboard() {
   };
 
   const handleActionRequest = async (
-    type: "download" | "preview" | "edit",
+    type: "download" | "preview" | "edit" | "share" | "move",
     file: FileData,
   ) => {
     if (type === "edit") {
       setFileToEdit(file);
       setEditModalOpen(true);
+      return;
+    }
+
+    if (type === "share") {
+      setFileToShare(file);
+      setShareModalOpen(true);
+      return;
+    }
+
+    if (type === "move") {
+      setFileToMove(file);
+      setMoveModalOpen(true);
       return;
     }
 
@@ -752,26 +874,56 @@ export default function Dashboard() {
           onChange={handleChange}
         />
 
-        <div className="flex items-center gap-3 -mt-8 mb-12">
-          <label className="text-xs font-medium text-gray-500 dark:text-gray-500 shrink-0">
-            Your name
-          </label>
-          <div className="relative flex items-center max-w-xs flex-1">
+        {/* Breadcrumb */}
+        {breadcrumbs.length > 0 && (
+          <FolderBreadcrumb crumbs={breadcrumbs} onNavigate={navigateToFolder} />
+        )}
+
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-2 mb-6">
+          {/* Your name */}
+          <div className="flex items-center gap-3">
+            <label className="text-xs font-medium text-gray-500 dark:text-gray-500 shrink-0">
+              Your name
+            </label>
+            <div className="relative flex items-center">
+              <input
+                type="text"
+                value={uploaderName}
+                onChange={(e) => setUploaderName(e.target.value)}
+                placeholder="anonymous"
+                maxLength={64}
+                className="w-40 h-8 pl-3 pr-7 text-sm rounded-lg border border-gray-200 dark:border-white/8 bg-white dark:bg-[#111111] text-gray-900 dark:text-gray-100 placeholder:text-gray-300 dark:placeholder:text-gray-600 focus:outline-none focus:border-gray-400 dark:focus:border-white/25 transition-colors"
+              />
+              {uploaderName && (
+                <button
+                  onClick={() => setUploaderName("")}
+                  className="absolute right-2 text-gray-300 hover:text-gray-600 dark:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                  aria-label="Clear"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Create folder */}
+          <div className="flex items-center gap-2">
+            <FolderPlus className="w-4 h-4 text-gray-400 dark:text-gray-500 shrink-0" />
             <input
               type="text"
-              value={uploaderName}
-              onChange={(e) => setUploaderName(e.target.value)}
-              placeholder="anonymous"
-              maxLength={64}
-              className="w-full h-8 pl-3 pr-7 text-sm rounded-lg border border-gray-200 dark:border-white/8 bg-white dark:bg-[#111111] text-gray-900 dark:text-gray-100 placeholder:text-gray-300 dark:placeholder:text-gray-600 focus:outline-none focus:border-gray-400 dark:focus:border-white/25 transition-colors"
+              value={createFolderName}
+              onChange={(e) => setCreateFolderName(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleCreateFolder()}
+              placeholder="New folder name…"
+              className="h-8 pl-3 pr-3 text-sm rounded-lg border border-gray-200 dark:border-white/8 bg-white dark:bg-[#111111] text-gray-900 dark:text-gray-100 placeholder:text-gray-300 dark:placeholder:text-gray-600 focus:outline-none focus:border-gray-400 dark:focus:border-white/25 transition-colors w-44"
             />
-            {uploaderName && (
+            {createFolderName.trim() && (
               <button
-                onClick={() => setUploaderName("")}
-                className="absolute right-2 text-gray-300 hover:text-gray-600 dark:text-gray-600 dark:hover:text-gray-300 transition-colors"
-                aria-label="Clear"
+                onClick={handleCreateFolder}
+                disabled={creatingFolder}
+                className="h-8 px-3 text-sm rounded-lg border border-gray-300 dark:border-white/15 bg-gray-900 dark:bg-white text-white dark:text-black hover:bg-gray-700 dark:hover:bg-white/90 transition-colors disabled:opacity-50"
               >
-                <X className="w-3.5 h-3.5" />
+                {creatingFolder ? <Loader2 className="w-4 h-4 animate-spin inline" /> : "Create"}
               </button>
             )}
           </div>
@@ -890,6 +1042,28 @@ export default function Dashboard() {
             </div>
           )}
 
+          {/* Folders */}
+          {folders.length > 0 && !error && !loading && (
+            <div
+              className={`mb-4 ${
+                viewMode === "grid"
+                  ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
+                  : "flex flex-col gap-2"
+              }`}
+            >
+              {folders.map((folder) => (
+                <FolderCard
+                  key={folder.id}
+                  folder={folder}
+                  viewMode={viewMode === "columns" ? "list" : viewMode}
+                  onOpen={navigateToFolder}
+                  onRename={(f) => { setFolderToRename(f); setRenameFolderOpen(true); }}
+                  onDelete={handleDeleteFolder}
+                />
+              ))}
+            </div>
+          )}
+
           {error ? (
             <div className="text-center py-20 border border-gray-200 dark:border-white/20 rounded-3xl bg-[#F5FEFD] dark:bg-white/5">
               <div className="w-16 h-16 rounded-full bg-red-50 dark:bg-white/10 flex items-center justify-center mx-auto mb-4">
@@ -984,6 +1158,26 @@ export default function Dashboard() {
         onOpenChange={setEditModalOpen}
         file={fileToEdit}
         onSave={handleEditFile}
+      />
+
+      <ShareModal
+        isOpen={shareModalOpen}
+        onOpenChange={setShareModalOpen}
+        file={fileToShare}
+      />
+
+      <MoveToFolderModal
+        isOpen={moveModalOpen}
+        onOpenChange={setMoveModalOpen}
+        file={fileToMove}
+        onMove={handleMoveFile}
+      />
+
+      <RenameFolderModal
+        isOpen={renameFolderOpen}
+        onOpenChange={setRenameFolderOpen}
+        folder={folderToRename}
+        onSave={handleRenameFolder}
       />
     </div>
   );

@@ -14,8 +14,9 @@ export const fileController = (
   publish: (topic: string, data: string) => void
 ) =>
   new Elysia({ prefix: "/files" })
-    .get("/", async () => {
-      const files = await fileService.getAllFiles();
+    .get("/", async ({ query }) => {
+      const folderId = query.folderId === "root" ? null : query.folderId;
+      const files = await fileService.getAllFiles(folderId);
       return files.map(serializeFile);
     })
     .post(
@@ -49,7 +50,8 @@ export const fileController = (
         const updatedFile = serializeFile(await fileService.updateFile(
           params.id,
           body.originalName,
-          body.uploaderName
+          body.uploaderName,
+          body.folderId,
         ));
         publish("files", JSON.stringify({ type: "FILE_UPDATED", data: updatedFile }));
         return updatedFile;
@@ -58,6 +60,7 @@ export const fileController = (
         body: t.Object({
           originalName: t.Optional(t.String()),
           uploaderName: t.Optional(t.String()),
+          folderId: t.Optional(t.Union([t.String(), t.Null()])),
         }),
       }
     )

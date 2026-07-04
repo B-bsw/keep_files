@@ -39,7 +39,7 @@ type FileCardProps = {
   isSelected: boolean;
   onFileClick: (id: string, multi: boolean, range: boolean) => void;
   onActionRequest: (
-    type: "download" | "preview" | "edit",
+    type: "download" | "preview" | "edit" | "share" | "move",
     file: FileData,
   ) => void;
   onDelete: (id: string) => void;
