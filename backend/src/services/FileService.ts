@@ -21,8 +21,9 @@ export class FileService {
     }
   }
 
-  public async getAllFiles() {
+  public async getAllFiles(folderId?: string | null) {
     return prisma.file.findMany({
+      where: folderId !== undefined ? { folderId } : {},
       orderBy: { uploadDate: "desc" },
     });
   }
@@ -74,27 +75,29 @@ export class FileService {
     await prisma.uploadSession.delete({ where: { id: sessionId } });
   }
 
-  public async streamUpload({ objectKey, buffer, size, originalName, mimeType, uploaderName }: {
+  public async streamUpload({ objectKey, buffer, size, originalName, mimeType, uploaderName, folderId }: {
     objectKey: string;
     buffer: Buffer;
     size: number;
     originalName: string;
     mimeType: string;
     uploaderName?: string;
+    folderId?: string;
   }) {
     await minioService.putObject(objectKey, buffer, size, mimeType);
-    return this.saveFileRecord({ originalName, objectKey, size, mimeType, uploaderName });
+    return this.saveFileRecord({ originalName, objectKey, size, mimeType, uploaderName, folderId });
   }
 
-  public async saveFileRecord({ originalName, objectKey, size, mimeType, uploaderName }: {
+  public async saveFileRecord({ originalName, objectKey, size, mimeType, uploaderName, folderId }: {
     originalName: string;
     objectKey: string;
     size: number;
     mimeType: string;
     uploaderName?: string;
+    folderId?: string;
   }) {
     return prisma.file.create({
-      data: { originalName, objectKey, size: BigInt(size), mimeType, uploaderName: uploaderName || null },
+      data: { originalName, objectKey, size: BigInt(size), mimeType, uploaderName: uploaderName || null, folderId: folderId || null },
     });
   }
 
@@ -103,6 +106,7 @@ export class FileService {
     mimeType: string,
     totalSize: number,
     uploaderName?: string,
+    folderId?: string,
   ) {
     const ext = fileName.split(".").pop() || "";
     const objectKey = `${crypto.randomUUID()}-${Date.now()}.${ext}`;
@@ -115,6 +119,7 @@ export class FileService {
         totalSize: BigInt(totalSize),
         objectKey,
         uploaderName: uploaderName || null,
+        folderId: folderId || null,
         expiresAt,
       },
     });
@@ -143,7 +148,7 @@ export class FileService {
     return { done: false, uploadedSize: newUploaded };
   }
 
-  private async finalizeSession(session: { id: string; objectKey: string; fileName: string; mimeType: string; totalSize: bigint; uploaderName: string | null }) {
+  private async finalizeSession(session: { id: string; objectKey: string; fileName: string; mimeType: string; totalSize: bigint; uploaderName: string | null; folderId?: string | null }) {
     await minioService.finalizeTempObject(session.objectKey, session.mimeType, Number(session.totalSize));
 
     const newFile = await prisma.file.create({
@@ -153,6 +158,7 @@ export class FileService {
         size: session.totalSize,
         mimeType: session.mimeType,
         uploaderName: session.uploaderName,
+        folderId: session.folderId || null,
       },
     });
 
@@ -161,7 +167,7 @@ export class FileService {
     return { done: true, file: newFile };
   }
 
-  public async updateFile(id: string, originalName?: string, uploaderName?: string) {
+  public async updateFile(id: string, originalName?: string, uploaderName?: string, folderId?: string | null) {
     const file = await this.getFileById(id);
     if (!file) throw new Error("File not found");
 
@@ -181,6 +187,7 @@ export class FileService {
       data: {
         ...(originalName && { originalName: finalOriginalName }),
         ...(uploaderName !== undefined && { uploaderName }),
+        ...(folderId !== undefined && { folderId }),
         uploadDate: new Date(),
       },
     });

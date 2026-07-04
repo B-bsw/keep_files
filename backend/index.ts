@@ -7,19 +7,25 @@ import path from "path";
 import { config } from "./src/config";
 import { AuthService } from "./src/services/AuthService";
 import { FileService } from "./src/services/FileService";
+import { FolderService } from "./src/services/FolderService";
+import { ShareService } from "./src/services/ShareService";
 import { TokenService } from "./src/services/TokenService";
 import { authController } from "./src/controllers/AuthController";
 import { fileController } from "./src/controllers/FileController";
+import { folderController } from "./src/controllers/FolderController";
+import { shareController } from "./src/controllers/ShareController";
 
 const authService = new AuthService();
 const fileService = new FileService();
+const folderService = new FolderService();
+const shareService = new ShareService();
 const tokenService = new TokenService();
 
 const app = new Elysia({ serve: { maxRequestBodySize: 10 * 1024 * 1024 * 1024 } })
   .use(
     cors({
       credentials: true,
-      allowedHeaders: ["Content-Type", "Authorization", "x-access-key", "x-file-name", "x-uploader-name", "Content-Range"],
+      allowedHeaders: ["Content-Type", "Authorization", "x-access-key", "x-file-name", "x-uploader-name", "x-folder-id", "Content-Range"],
     }),
   )
   .use(
@@ -66,7 +72,8 @@ const app = new Elysia({ serve: { maxRequestBodySize: 10 * 1024 * 1024 * 1024 } 
       path === "/" ||
       path === "/health" ||
       path.endsWith("/content") ||
-      path === "/auth/login"
+      path === "/auth/login" ||
+      path.startsWith("/share/")
     )
       return;
 
@@ -123,6 +130,8 @@ app.use(
     app.server?.publish(topic, data);
   })
 );
+app.use(folderController(folderService));
+app.use(shareController(shareService, fileService, tokenService));
 
 app.listen({ port: config.port, hostname: "0.0.0.0" });
 

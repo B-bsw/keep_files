@@ -5,6 +5,25 @@ export type FileData = {
   mimeType: string;
   uploadDate: string;
   uploaderName: string | null;
+  folderId: string | null;
+};
+
+export type FolderData = {
+  id: string;
+  name: string;
+  parentId: string | null;
+  createdBy: string | null;
+  createdAt: string;
+};
+
+export type ShareLink = {
+  id: string;
+  token: string;
+  fileId: string | null;
+  folderId: string | null;
+  permission: "VIEW" | "DOWNLOAD";
+  expiresAt: string | null;
+  createdAt: string;
 };
 
 export type UploadTask = {

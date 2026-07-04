@@ -14,8 +14,9 @@ export const fileController = (
   publish: (topic: string, data: string) => void
 ) =>
   new Elysia({ prefix: "/files" })
-    .get("/", async () => {
-      const files = await fileService.getAllFiles();
+    .get("/", async ({ query }) => {
+      const folderId = query.folderId === "root" ? null : query.folderId;
+      const files = await fileService.getAllFiles(folderId);
       return files.map(serializeFile);
     })
     .post(
@@ -49,7 +50,8 @@ export const fileController = (
         const updatedFile = serializeFile(await fileService.updateFile(
           params.id,
           body.originalName,
-          body.uploaderName
+          body.uploaderName,
+          body.folderId,
         ));
         publish("files", JSON.stringify({ type: "FILE_UPDATED", data: updatedFile }));
         return updatedFile;
@@ -58,6 +60,7 @@ export const fileController = (
         body: t.Object({
           originalName: t.Optional(t.String()),
           uploaderName: t.Optional(t.String()),
+          folderId: t.Optional(t.Union([t.String(), t.Null()])),
         }),
       }
     )
@@ -65,6 +68,7 @@ export const fileController = (
       const fileName = decodeURIComponent(request.headers.get("x-file-name") || "upload");
       const mimeType = request.headers.get("content-type") || "application/octet-stream";
       const uploaderName = request.headers.get("x-uploader-name") || undefined;
+      const folderId = request.headers.get("x-folder-id") || undefined;
 
       if (!request.body) {
         set.status = 400;
@@ -95,6 +99,7 @@ export const fileController = (
         originalName: fileName,
         mimeType,
         uploaderName,
+        folderId,
       }));
       publish("files", JSON.stringify({ type: "FILE_ADDED", data: newFile }));
 
@@ -109,6 +114,7 @@ export const fileController = (
           body.mimeType,
           body.totalSize,
           body.uploaderName,
+          body.folderId,
         );
         return {
           sessionId: session.id,
@@ -122,6 +128,7 @@ export const fileController = (
           mimeType: t.String(),
           totalSize: t.Number(),
           uploaderName: t.Optional(t.String()),
+          folderId: t.Optional(t.String()),
         }),
       },
     )

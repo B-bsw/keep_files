@@ -1,18 +1,22 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
-import { FileData, SortOption } from "../../types";
+import { FileData, FolderData, SortOption } from "../../types";
 import { FileSidebar } from "./FileSidebar";
 import { PreviewPane } from "./PreviewPane";
 import { ChevronLeft } from "lucide-react";
 
 type FileExplorerProps = {
   files: FileData[];
+  folders: FolderData[];
   sortedFiles: FileData[];
   selectedFiles: Set<string>;
   onFileClick: (id: string, multi: boolean, range: boolean) => void;
+  onFolderOpen: (id: string) => void;
+  onFolderRename: (folder: FolderData) => void;
+  onFolderDelete: (id: string) => void;
   onActionRequest: (
-    type: "download" | "preview" | "edit",
+    type: "download" | "preview" | "edit" | "share" | "move",
     file: FileData
   ) => void;
   onDelete: (id: string) => void;
@@ -22,16 +26,20 @@ type FileExplorerProps = {
 
 export function FileExplorer({
   files,
+  folders,
   sortedFiles,
   selectedFiles,
   onFileClick,
+  onFolderOpen,
+  onFolderRename,
+  onFolderDelete,
   onActionRequest,
   onDelete,
   sortOption,
   setSortOption,
 }: FileExplorerProps) {
   const [activeFileId, setActiveFileId] = useState<string | null>(null);
-  // Mobile: controls which panel is visible (sidebar vs preview)
+  const [activeFileOverride, setActiveFileOverride] = useState<FileData | null>(null);
   const [mobileShowPreview, setMobileShowPreview] = useState(false);
 
   // Desktop resize state
@@ -41,9 +49,8 @@ export function FileExplorer({
   const startXRef = useRef(0);
   const startWidthRef = useRef(320);
 
-  const activeFile = activeFileId
-    ? files.find((f) => f.id === activeFileId) ?? null
-    : null;
+  const activeFile = activeFileOverride
+    ?? (activeFileId ? files.find((f) => f.id === activeFileId) ?? null : null);
 
   // Preview state
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -54,12 +61,18 @@ export function FileExplorer({
       onFileClick(id, multi, range);
       if (!multi && !range) {
         setActiveFileId(id);
-        // On mobile, slide to preview
+        setActiveFileOverride(null);
         setMobileShowPreview(true);
       }
     },
     [onFileClick]
   );
+
+  const handleFolderFileActivate = useCallback((file: FileData) => {
+    setActiveFileOverride(file);
+    setActiveFileId(null);
+    setMobileShowPreview(true);
+  }, []);
 
   const handleMobileBack = useCallback(() => {
     setMobileShowPreview(false);
@@ -133,7 +146,7 @@ export function FileExplorer({
   return (
     <div
       ref={containerRef}
-      className="relative h-[calc(100vh-280px)] min-h-[400px] md:min-h-[500px] rounded-xl border border-gray-200 dark:border-[#222222] overflow-hidden bg-white dark:bg-[#0a0a0a]"
+      className="relative h-[calc(100vh-280px)] min-h-100 md:min-h-125 rounded-xl border border-gray-200 dark:border-[#222222] overflow-hidden bg-white dark:bg-[#0a0a0a]"
     >
       {/* ── Mobile layout: slide between sidebar and preview ── */}
       <div className="md:hidden flex h-full w-full">
@@ -145,9 +158,15 @@ export function FileExplorer({
         >
           <FileSidebar
             files={sortedFiles}
+            folders={folders}
             selectedFiles={selectedFiles}
             activeFileId={activeFileId}
             onFileSelect={handleFileSelect}
+            onFolderFileActivate={handleFolderFileActivate}
+            activeFileOverrideId={activeFileOverride?.id ?? null}
+            onFolderOpen={onFolderOpen}
+            onFolderRename={onFolderRename}
+            onFolderDelete={onFolderDelete}
             onActionRequest={onActionRequest}
             onDelete={onDelete}
             sortOption={sortOption}
@@ -203,9 +222,15 @@ export function FileExplorer({
         >
           <FileSidebar
             files={sortedFiles}
+            folders={folders}
             selectedFiles={selectedFiles}
             activeFileId={activeFileId}
             onFileSelect={handleFileSelect}
+            onFolderFileActivate={handleFolderFileActivate}
+            activeFileOverrideId={activeFileOverride?.id ?? null}
+            onFolderOpen={onFolderOpen}
+            onFolderRename={onFolderRename}
+            onFolderDelete={onFolderDelete}
             onActionRequest={onActionRequest}
             onDelete={onDelete}
             sortOption={sortOption}
