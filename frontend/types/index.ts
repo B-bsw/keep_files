@@ -12,6 +12,7 @@ export type FolderData = {
   id: string;
   name: string;
   parentId: string | null;
+  createdBy: string | null;
   createdAt: string;
 };
 

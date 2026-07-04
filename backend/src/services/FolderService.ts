@@ -12,9 +12,9 @@ export class FolderService {
     return prisma.folder.findUnique({ where: { id } });
   }
 
-  public async createFolder(name: string, parentId?: string) {
+  public async createFolder(name: string, parentId?: string, createdBy?: string) {
     return prisma.folder.create({
-      data: { name, parentId: parentId || null },
+      data: { name, parentId: parentId || null, createdBy: createdBy || null },
     });
   }
 

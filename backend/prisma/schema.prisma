@@ -8,13 +8,14 @@ datasource db {
 }
 
 model Folder {
-  id        String   @id @default(uuid())
-  name      String
-  parentId  String?
-  parent    Folder?  @relation("FolderTree", fields: [parentId], references: [id])
-  children  Folder[] @relation("FolderTree")
-  files     File[]
-  createdAt DateTime @default(now())
+  id          String   @id @default(uuid())
+  name        String
+  parentId    String?
+  parent      Folder?  @relation("FolderTree", fields: [parentId], references: [id])
+  children    Folder[] @relation("FolderTree")
+  files       File[]
+  createdBy   String?
+  createdAt   DateTime @default(now())
 }
 
 model File {

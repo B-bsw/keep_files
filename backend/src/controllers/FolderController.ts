@@ -10,12 +10,13 @@ export const folderController = (folderService: FolderService) =>
     .post(
       "/",
       async ({ body }) => {
-        return folderService.createFolder(body.name, body.parentId);
+        return folderService.createFolder(body.name, body.parentId, body.createdBy);
       },
       {
         body: t.Object({
           name: t.String({ minLength: 1 }),
           parentId: t.Optional(t.String()),
+          createdBy: t.Optional(t.String()),
         }),
       },
     )

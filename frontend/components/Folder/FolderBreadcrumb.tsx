@@ -8,13 +8,19 @@ type Props = {
 };
 
 export function FolderBreadcrumb({ crumbs, onNavigate }: Props) {
+  const atRoot = crumbs.length === 0;
   return (
     <nav className="flex items-center gap-1 text-sm mb-4">
       <button
         onClick={() => onNavigate(null)}
-        className="flex items-center gap-1 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
+        className={`flex items-center gap-1 transition-colors ${
+          atRoot
+            ? "text-gray-900 dark:text-white font-medium cursor-default"
+            : "text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+        }`}
       >
         <Home className="w-4 h-4" />
+        <span>Home</span>
       </button>
       {crumbs.map((crumb, i) => (
         <span key={crumb.id} className="flex items-center gap-1">

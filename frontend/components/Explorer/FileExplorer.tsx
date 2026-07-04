@@ -1,18 +1,22 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
-import { FileData, SortOption } from "../../types";
+import { FileData, FolderData, SortOption } from "../../types";
 import { FileSidebar } from "./FileSidebar";
 import { PreviewPane } from "./PreviewPane";
 import { ChevronLeft } from "lucide-react";
 
 type FileExplorerProps = {
   files: FileData[];
+  folders: FolderData[];
   sortedFiles: FileData[];
   selectedFiles: Set<string>;
   onFileClick: (id: string, multi: boolean, range: boolean) => void;
+  onFolderOpen: (id: string) => void;
+  onFolderRename: (folder: FolderData) => void;
+  onFolderDelete: (id: string) => void;
   onActionRequest: (
-    type: "download" | "preview" | "edit",
+    type: "download" | "preview" | "edit" | "share" | "move",
     file: FileData
   ) => void;
   onDelete: (id: string) => void;
@@ -22,9 +26,13 @@ type FileExplorerProps = {
 
 export function FileExplorer({
   files,
+  folders,
   sortedFiles,
   selectedFiles,
   onFileClick,
+  onFolderOpen,
+  onFolderRename,
+  onFolderDelete,
   onActionRequest,
   onDelete,
   sortOption,
@@ -145,9 +153,13 @@ export function FileExplorer({
         >
           <FileSidebar
             files={sortedFiles}
+            folders={folders}
             selectedFiles={selectedFiles}
             activeFileId={activeFileId}
             onFileSelect={handleFileSelect}
+            onFolderOpen={onFolderOpen}
+            onFolderRename={onFolderRename}
+            onFolderDelete={onFolderDelete}
             onActionRequest={onActionRequest}
             onDelete={onDelete}
             sortOption={sortOption}
@@ -203,9 +215,13 @@ export function FileExplorer({
         >
           <FileSidebar
             files={sortedFiles}
+            folders={folders}
             selectedFiles={selectedFiles}
             activeFileId={activeFileId}
             onFileSelect={handleFileSelect}
+            onFolderOpen={onFolderOpen}
+            onFolderRename={onFolderRename}
+            onFolderDelete={onFolderDelete}
             onActionRequest={onActionRequest}
             onDelete={onDelete}
             sortOption={sortOption}

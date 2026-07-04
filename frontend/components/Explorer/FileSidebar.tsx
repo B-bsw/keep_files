@@ -18,8 +18,10 @@ import {
   ArrowDown,
   ArrowUp,
   Search,
+  Pencil,
+  Trash2,
 } from "lucide-react";
-import { FileData, SortOption } from "../../types";
+import { FileData, FolderData, SortOption } from "../../types";
 import { formatBytes } from "../../utils";
 import { format } from "timeago.js";
 
@@ -99,9 +101,13 @@ const SORT_LABELS: Record<string, string> = {
 
 type FileSidebarProps = {
   files: FileData[];
+  folders: FolderData[];
   selectedFiles: Set<string>;
   activeFileId: string | null;
   onFileSelect: (id: string, multi: boolean, range: boolean) => void;
+  onFolderOpen: (id: string) => void;
+  onFolderRename: (folder: FolderData) => void;
+  onFolderDelete: (id: string) => void;
   onActionRequest: (
     type: "download" | "preview" | "edit",
     file: FileData
@@ -113,9 +119,13 @@ type FileSidebarProps = {
 
 export function FileSidebar({
   files,
+  folders,
   selectedFiles,
   activeFileId,
   onFileSelect,
+  onFolderOpen,
+  onFolderRename,
+  onFolderDelete,
   onActionRequest,
   onDelete,
   sortOption,
@@ -212,6 +222,44 @@ export function FileSidebar({
 
       {/* File tree */}
       <div className="flex-1 overflow-y-auto overflow-x-hidden py-1 scrollbar-thin">
+        {/* Folders section */}
+        {folders.length > 0 && (
+          <div className="mb-0.5">
+            <div className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.08em] text-gray-400 dark:text-gray-500">
+              <Folder className="w-3 h-3 shrink-0" />
+              <span>Folders</span>
+              <span className="font-mono text-[9px] text-gray-300 dark:text-gray-600 ml-auto">{folders.length}</span>
+            </div>
+            {folders.map((folder) => (
+              <div
+                key={folder.id}
+                className="group flex items-center gap-2 pl-4 pr-2 py-1.5 mx-1 rounded-md cursor-pointer transition-colors hover:bg-gray-50 dark:hover:bg-[#111111] hover:text-gray-900 dark:hover:text-gray-200 text-gray-600 dark:text-gray-400"
+                onClick={() => onFolderOpen(folder.id)}
+              >
+                <Folder className="w-4 h-4 shrink-0 text-yellow-500 dark:text-yellow-400" />
+                <span className="flex-1 min-w-0 truncate text-[13px]">{folder.name}</span>
+                <div className="opacity-0 group-hover:opacity-100 flex items-center gap-0.5 shrink-0" onClick={(e) => e.stopPropagation()}>
+                  <button
+                    onClick={() => onFolderRename(folder)}
+                    className="w-5 h-5 flex items-center justify-center rounded hover:bg-gray-200 dark:hover:bg-[#1a1a1a] transition-colors"
+                    title="Rename"
+                  >
+                    <Pencil className="w-3 h-3" />
+                  </button>
+                  <button
+                    onClick={() => onFolderDelete(folder.id)}
+                    className="w-5 h-5 flex items-center justify-center rounded hover:bg-red-100 dark:hover:bg-red-500/10 text-red-500 transition-colors"
+                    title="Delete"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </button>
+                </div>
+              </div>
+            ))}
+            <div className="mx-3 my-1 border-b border-gray-100 dark:border-[#1a1a1a]" />
+          </div>
+        )}
+
         {files.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center px-6">
             <FileIcon className="w-10 h-10 text-gray-300 dark:text-gray-600 mb-3" />

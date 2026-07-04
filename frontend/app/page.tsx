@@ -10,7 +10,13 @@ import {
   X,
   FolderPlus,
 } from "lucide-react";
-import { FileData, FolderData, UploadTask, DeleteTask, SortOption } from "../types";
+import {
+  FileData,
+  FolderData,
+  UploadTask,
+  DeleteTask,
+  SortOption,
+} from "../types";
 import { Header } from "../components/Header/Header";
 import { UploadArea } from "../components/UploadArea";
 import { UploadProgressList } from "../components/Progress/UploadProgressList";
@@ -71,7 +77,9 @@ export default function Dashboard() {
 
   const [folders, setFolders] = useState<FolderData[]>([]);
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
-  const [breadcrumbs, setBreadcrumbs] = useState<Array<{ id: string; name: string }>>([]);
+  const [breadcrumbs, setBreadcrumbs] = useState<
+    Array<{ id: string; name: string }>
+  >([]);
 
   const [renameFolderOpen, setRenameFolderOpen] = useState(false);
   const [folderToRename, setFolderToRename] = useState<FolderData | null>(null);
@@ -115,17 +123,22 @@ export default function Dashboard() {
     }
   });
 
-  const fetchFiles = async (cfg?: {
-    apiUrl: string;
-    accessKey: string;
-    auth?: string;
-  }, folderId?: string | null) => {
+  const fetchFiles = async (
+    cfg?: {
+      apiUrl: string;
+      accessKey: string;
+      auth?: string;
+    },
+    folderId?: string | null,
+  ) => {
     try {
       setError(null);
       const config = cfg ?? appConfig;
       const folder = folderId !== undefined ? folderId : currentFolderId;
       const folderParam = folder ? `folderId=${folder}` : "folderId=root";
-      const url = config ? `${config.apiUrl}/files?${folderParam}` : `/api/files?${folderParam}`;
+      const url = config
+        ? `${config.apiUrl}/files?${folderParam}`
+        : `/api/files?${folderParam}`;
       const headers: HeadersInit = {};
       if (config) {
         const token = config.auth || config.accessKey;
@@ -164,7 +177,10 @@ export default function Dashboard() {
     setCurrentFolderId(folderId);
     setSelectedFiles(new Set());
     setLoading(true);
-    await Promise.all([fetchFiles(undefined, folderId), fetchFolders(folderId)]);
+    await Promise.all([
+      fetchFiles(undefined, folderId),
+      fetchFolders(folderId),
+    ]);
     if (folderId) {
       const res = await fetch(`/api/folders/${folderId}`);
       if (res.ok) setBreadcrumbs(await res.json());
@@ -181,7 +197,7 @@ export default function Dashboard() {
       const res = await fetch("/api/folders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, parentId: currentFolderId || undefined }),
+        body: JSON.stringify({ name, parentId: currentFolderId || undefined, createdBy: uploaderName.trim() || undefined }),
       });
       if (res.ok) {
         setCreateFolderName("");
@@ -211,11 +227,15 @@ export default function Dashboard() {
   const handleDeleteFolder = async (id: string) => {
     setConfirmAction({
       title: "Delete Folder",
-      description: "Files inside will be moved to root. Subfolders will also be deleted.",
+      description:
+        "Files inside will be moved to root. Subfolders will also be deleted.",
       onConfirm: async () => {
         const res = await fetch(`/api/folders/${id}`, { method: "DELETE" });
         if (res.ok) {
-          await Promise.all([fetchFolders(currentFolderId), fetchFiles(undefined, currentFolderId)]);
+          await Promise.all([
+            fetchFolders(currentFolderId),
+            fetchFiles(undefined, currentFolderId),
+          ]);
           toast("Folder deleted");
         } else {
           toast("Failed to delete folder", { variant: "danger" });
@@ -446,7 +466,10 @@ export default function Dashboard() {
       xhr.withCredentials = true;
       if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
       xhr.setRequestHeader("X-File-Name", encodeURIComponent(task.fileName));
-      xhr.setRequestHeader("X-Uploader-Name", uploaderName.trim() || "anonymous");
+      xhr.setRequestHeader(
+        "X-Uploader-Name",
+        uploaderName.trim() || "anonymous",
+      );
       xhr.setRequestHeader(
         "Content-Type",
         task.mimeType || "application/octet-stream",
@@ -764,7 +787,10 @@ export default function Dashboard() {
       const anchorIdx = ids.indexOf(anchorId.current);
       const targetIdx = ids.indexOf(id);
       if (anchorIdx !== -1 && targetIdx !== -1) {
-        const [from, to] = anchorIdx < targetIdx ? [anchorIdx, targetIdx] : [targetIdx, anchorIdx];
+        const [from, to] =
+          anchorIdx < targetIdx
+            ? [anchorIdx, targetIdx]
+            : [targetIdx, anchorIdx];
         const rangeIds = ids.slice(from, to + 1);
         setSelectedFiles((prev) => {
           const next = new Set(prev);
@@ -785,7 +811,11 @@ export default function Dashboard() {
       setSelectedFiles(newSelected);
     } else {
       anchorId.current = id;
-      setSelectedFiles(selectedFiles.size === 1 && selectedFiles.has(id) ? new Set() : new Set([id]));
+      setSelectedFiles(
+        selectedFiles.size === 1 && selectedFiles.has(id)
+          ? new Set()
+          : new Set([id]),
+      );
     }
   };
 
@@ -875,9 +905,7 @@ export default function Dashboard() {
         />
 
         {/* Breadcrumb */}
-        {breadcrumbs.length > 0 && (
-          <FolderBreadcrumb crumbs={breadcrumbs} onNavigate={navigateToFolder} />
-        )}
+        <FolderBreadcrumb crumbs={breadcrumbs} onNavigate={navigateToFolder} />
 
         <div className="flex flex-wrap items-center gap-x-6 gap-y-2 mb-6">
           {/* Your name */}
@@ -923,7 +951,11 @@ export default function Dashboard() {
                 disabled={creatingFolder}
                 className="h-8 px-3 text-sm rounded-lg border border-gray-300 dark:border-white/15 bg-gray-900 dark:bg-white text-white dark:text-black hover:bg-gray-700 dark:hover:bg-white/90 transition-colors disabled:opacity-50"
               >
-                {creatingFolder ? <Loader2 className="w-4 h-4 animate-spin inline" /> : "Create"}
+                {creatingFolder ? (
+                  <Loader2 className="w-4 h-4 animate-spin inline" />
+                ) : (
+                  "Create"
+                )}
               </button>
             )}
           </div>
@@ -936,7 +968,9 @@ export default function Dashboard() {
           <FileToolbar
             filesCount={files.length}
             selectedCount={selectedFiles.size}
-            isAllSelected={files.length > 0 && selectedFiles.size === files.length}
+            isAllSelected={
+              files.length > 0 && selectedFiles.size === files.length
+            }
             onToggleSelectAll={() =>
               selectedFiles.size === files.length
                 ? setSelectedFiles(new Set())
@@ -1042,28 +1076,6 @@ export default function Dashboard() {
             </div>
           )}
 
-          {/* Folders */}
-          {folders.length > 0 && !error && !loading && (
-            <div
-              className={`mb-4 ${
-                viewMode === "grid"
-                  ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
-                  : "flex flex-col gap-2"
-              }`}
-            >
-              {folders.map((folder) => (
-                <FolderCard
-                  key={folder.id}
-                  folder={folder}
-                  viewMode={viewMode === "columns" ? "list" : viewMode}
-                  onOpen={navigateToFolder}
-                  onRename={(f) => { setFolderToRename(f); setRenameFolderOpen(true); }}
-                  onDelete={handleDeleteFolder}
-                />
-              ))}
-            </div>
-          )}
-
           {error ? (
             <div className="text-center py-20 border border-gray-200 dark:border-white/20 rounded-3xl bg-[#F5FEFD] dark:bg-white/5">
               <div className="w-16 h-16 rounded-full bg-red-50 dark:bg-white/10 flex items-center justify-center mx-auto mb-4">
@@ -1100,9 +1112,16 @@ export default function Dashboard() {
           ) : viewMode === "columns" ? (
             <FileExplorer
               files={files}
+              folders={folders}
               sortedFiles={sortedFiles}
               selectedFiles={selectedFiles}
               onFileClick={handleFileClick}
+              onFolderOpen={navigateToFolder}
+              onFolderRename={(f) => {
+                setFolderToRename(f);
+                setRenameFolderOpen(true);
+              }}
+              onFolderDelete={handleDeleteFolder}
               onActionRequest={handleActionRequest}
               onDelete={handleDelete}
               sortOption={sortOption}
@@ -1116,6 +1135,22 @@ export default function Dashboard() {
                   : "flex flex-col gap-4"
               }
             >
+              {/* folder */}
+              {folders.map((folder) => (
+                <FolderCard
+                  key={folder.id}
+                  folder={folder}
+                  viewMode={viewMode}
+                  onOpen={navigateToFolder}
+                  onRename={(f) => {
+                    setFolderToRename(f);
+                    setRenameFolderOpen(true);
+                  }}
+                  onDelete={handleDeleteFolder}
+                />
+              ))}
+
+              {/* file */}
               {sortedFiles.map((file) => (
                 <FileCard
                   key={file.id}
