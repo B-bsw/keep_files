@@ -104,7 +104,9 @@ type FileSidebarProps = {
   folders: FolderData[];
   selectedFiles: Set<string>;
   activeFileId: string | null;
+  activeFileOverrideId: string | null;
   onFileSelect: (id: string, multi: boolean, range: boolean) => void;
+  onFolderFileActivate: (file: FileData) => void;
   onFolderOpen: (id: string) => void;
   onFolderRename: (folder: FolderData) => void;
   onFolderDelete: (id: string) => void;
@@ -117,12 +119,142 @@ type FileSidebarProps = {
   setSortOption: (opt: SortOption) => void;
 };
 
+type FolderNodeData = {
+  folders: FolderData[];
+  files: FileData[];
+};
+
+type FolderNodeProps = {
+  folder: FolderData;
+  depth: number;
+  activeFileId: string | null;
+  activeFileOverrideId: string | null;
+  selectedFiles: Set<string>;
+  onFolderFileActivate: (file: FileData) => void;
+  onFolderRename: (folder: FolderData) => void;
+  onFolderDelete: (id: string) => void;
+  nodeData: Record<string, FolderNodeData>;
+  expandedFolders: Set<string>;
+  onToggle: (folderId: string) => void;
+};
+
+function FolderNode({
+  folder,
+  depth,
+  activeFileId,
+  activeFileOverrideId,
+  selectedFiles,
+  onFolderFileActivate,
+  onFolderRename,
+  onFolderDelete,
+  nodeData,
+  expandedFolders,
+  onToggle,
+}: FolderNodeProps) {
+  const isExpanded = expandedFolders.has(folder.id);
+  const data = nodeData[folder.id];
+  const pl = `${12 + depth * 12}px`;
+
+  return (
+    <div>
+      <div
+        className="group flex items-center gap-1.5 pr-2 py-1.5 mx-1 rounded-md cursor-pointer transition-colors hover:bg-gray-50 dark:hover:bg-[#111111] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
+        style={{ paddingLeft: pl }}
+        onClick={() => onToggle(folder.id)}
+      >
+        {isExpanded ? (
+          <ChevronDown className="w-3 h-3 shrink-0 text-gray-400" />
+        ) : (
+          <ChevronRight className="w-3 h-3 shrink-0 text-gray-400" />
+        )}
+        {isExpanded ? (
+          <FolderOpen className="w-4 h-4 shrink-0 text-yellow-500 dark:text-yellow-400" />
+        ) : (
+          <Folder className="w-4 h-4 shrink-0 text-yellow-500 dark:text-yellow-400" />
+        )}
+        <span className="flex-1 min-w-0 truncate text-[13px]">{folder.name}</span>
+        <div className="opacity-0 group-hover:opacity-100 flex items-center gap-0.5 shrink-0" onClick={(e) => e.stopPropagation()}>
+          <button
+            onClick={() => onFolderRename(folder)}
+            className="w-5 h-5 flex items-center justify-center rounded hover:bg-gray-200 dark:hover:bg-[#1a1a1a] transition-colors"
+          >
+            <Pencil className="w-3 h-3" />
+          </button>
+          <button
+            onClick={() => onFolderDelete(folder.id)}
+            className="w-5 h-5 flex items-center justify-center rounded hover:bg-red-100 dark:hover:bg-red-500/10 text-red-500 transition-colors"
+          >
+            <Trash2 className="w-3 h-3" />
+          </button>
+        </div>
+      </div>
+
+      {isExpanded && (
+        <div>
+          {!data ? (
+            <p className="py-1 text-[11px] text-gray-400 dark:text-gray-600" style={{ paddingLeft: `${Number(pl.replace("px", "")) + 20}px` }}>Loading…</p>
+          ) : (
+            <>
+              {data.folders.map((sub) => (
+                <FolderNode
+                  key={sub.id}
+                  folder={sub}
+                  depth={depth + 1}
+                  activeFileId={activeFileId}
+                  activeFileOverrideId={activeFileOverrideId}
+                  selectedFiles={selectedFiles}
+                  onFolderFileActivate={onFolderFileActivate}
+                  onFolderRename={onFolderRename}
+                  onFolderDelete={onFolderDelete}
+                  nodeData={nodeData}
+                  expandedFolders={expandedFolders}
+                  onToggle={onToggle}
+                />
+              ))}
+              {data.files.map((file) => {
+                const isActive = activeFileId === file.id || activeFileOverrideId === file.id;
+                const isSelected = selectedFiles.has(file.id);
+                const filePl = `${12 + (depth + 1) * 12 + 8}px`;
+                return (
+                  <button
+                    key={file.id}
+                    onClick={() => onFolderFileActivate(file)}
+                    className={`group w-full flex items-center gap-2 pr-3 py-1.5 text-left transition-all rounded-md mx-1 ${
+                      isActive
+                        ? "bg-blue-50 dark:bg-white/8 text-gray-900 dark:text-white"
+                        : isSelected
+                        ? "bg-blue-50/50 dark:bg-white/4 text-gray-800 dark:text-gray-200"
+                        : "text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-[#111111] hover:text-gray-900 dark:hover:text-gray-200"
+                    }`}
+                    style={{ paddingLeft: filePl }}
+                  >
+                    {getFileTypeIcon(file)}
+                    <span className="flex-1 min-w-0 truncate text-[13px]">{file.originalName}</span>
+                    <span className={`shrink-0 text-[10px] font-mono tabular-nums transition-opacity ${isActive ? "opacity-100 text-gray-500" : "opacity-0 group-hover:opacity-100 text-gray-300 dark:text-gray-600"}`}>
+                      {formatBytes(file.size)}
+                    </span>
+                  </button>
+                );
+              })}
+              {data.folders.length === 0 && data.files.length === 0 && (
+                <p className="py-1 text-[11px] text-gray-300 dark:text-gray-600 italic" style={{ paddingLeft: `${Number(pl.replace("px", "")) + 20}px` }}>Empty</p>
+              )}
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function FileSidebar({
   files,
   folders,
   selectedFiles,
   activeFileId,
+  activeFileOverrideId,
   onFileSelect,
+  onFolderFileActivate,
   onFolderOpen,
   onFolderRename,
   onFolderDelete,
@@ -134,7 +266,32 @@ export function FileSidebar({
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(
     new Set()
   );
+  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
+  const [nodeData, setNodeData] = useState<Record<string, FolderNodeData>>({});
   const [searchQuery, setSearchQuery] = useState("");
+
+  const handleToggle = (folderId: string) => {
+    const willExpand = !expandedFolders.has(folderId);
+    setExpandedFolders((prev) => {
+      const next = new Set(prev);
+      next.has(folderId) ? next.delete(folderId) : next.add(folderId);
+      return next;
+    });
+    if (willExpand && !nodeData[folderId]) {
+      Promise.all([
+        fetch(`/api/folders?parentId=${folderId}`).then((r) => r.json()).catch(() => []),
+        fetch(`/api/files?folderId=${folderId}`).then((r) => r.json()).catch(() => []),
+      ]).then(([subFolders, subFiles]) => {
+        setNodeData((prev) => ({
+          ...prev,
+          [folderId]: {
+            folders: Array.isArray(subFolders) ? subFolders : [],
+            files: Array.isArray(subFiles) ? subFiles : [],
+          },
+        }));
+      });
+    }
+  };
 
   // Group files by category
   const groups = useMemo(() => {
@@ -225,36 +382,21 @@ export function FileSidebar({
         {/* Folders section */}
         {folders.length > 0 && (
           <div className="mb-0.5">
-            <div className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.08em] text-gray-400 dark:text-gray-500">
-              <Folder className="w-3 h-3 shrink-0" />
-              <span>Folders</span>
-              <span className="font-mono text-[9px] text-gray-300 dark:text-gray-600 ml-auto">{folders.length}</span>
-            </div>
             {folders.map((folder) => (
-              <div
+              <FolderNode
                 key={folder.id}
-                className="group flex items-center gap-2 pl-4 pr-2 py-1.5 mx-1 rounded-md cursor-pointer transition-colors hover:bg-gray-50 dark:hover:bg-[#111111] hover:text-gray-900 dark:hover:text-gray-200 text-gray-600 dark:text-gray-400"
-                onClick={() => onFolderOpen(folder.id)}
-              >
-                <Folder className="w-4 h-4 shrink-0 text-yellow-500 dark:text-yellow-400" />
-                <span className="flex-1 min-w-0 truncate text-[13px]">{folder.name}</span>
-                <div className="opacity-0 group-hover:opacity-100 flex items-center gap-0.5 shrink-0" onClick={(e) => e.stopPropagation()}>
-                  <button
-                    onClick={() => onFolderRename(folder)}
-                    className="w-5 h-5 flex items-center justify-center rounded hover:bg-gray-200 dark:hover:bg-[#1a1a1a] transition-colors"
-                    title="Rename"
-                  >
-                    <Pencil className="w-3 h-3" />
-                  </button>
-                  <button
-                    onClick={() => onFolderDelete(folder.id)}
-                    className="w-5 h-5 flex items-center justify-center rounded hover:bg-red-100 dark:hover:bg-red-500/10 text-red-500 transition-colors"
-                    title="Delete"
-                  >
-                    <Trash2 className="w-3 h-3" />
-                  </button>
-                </div>
-              </div>
+                folder={folder}
+                depth={0}
+                activeFileId={activeFileId}
+                activeFileOverrideId={activeFileOverrideId}
+                selectedFiles={selectedFiles}
+                onFolderFileActivate={onFolderFileActivate}
+                onFolderRename={onFolderRename}
+                onFolderDelete={onFolderDelete}
+                nodeData={nodeData}
+                expandedFolders={expandedFolders}
+                onToggle={handleToggle}
+              />
             ))}
             <div className="mx-3 my-1 border-b border-gray-100 dark:border-[#1a1a1a]" />
           </div>

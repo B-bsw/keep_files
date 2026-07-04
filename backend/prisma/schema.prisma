@@ -50,6 +50,7 @@ model UploadSession {
   uploadedSize BigInt   @default(0)
   objectKey    String   @unique
   uploaderName String?
+  folderId     String?
   createdAt    DateTime @default(now())
   expiresAt    DateTime
 }

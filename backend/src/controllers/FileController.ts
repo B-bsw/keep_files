@@ -68,6 +68,7 @@ export const fileController = (
       const fileName = decodeURIComponent(request.headers.get("x-file-name") || "upload");
       const mimeType = request.headers.get("content-type") || "application/octet-stream";
       const uploaderName = request.headers.get("x-uploader-name") || undefined;
+      const folderId = request.headers.get("x-folder-id") || undefined;
 
       if (!request.body) {
         set.status = 400;
@@ -98,6 +99,7 @@ export const fileController = (
         originalName: fileName,
         mimeType,
         uploaderName,
+        folderId,
       }));
       publish("files", JSON.stringify({ type: "FILE_ADDED", data: newFile }));
 
@@ -112,6 +114,7 @@ export const fileController = (
           body.mimeType,
           body.totalSize,
           body.uploaderName,
+          body.folderId,
         );
         return {
           sessionId: session.id,
@@ -125,6 +128,7 @@ export const fileController = (
           mimeType: t.String(),
           totalSize: t.Number(),
           uploaderName: t.Optional(t.String()),
+          folderId: t.Optional(t.String()),
         }),
       },
     )

@@ -466,10 +466,8 @@ export default function Dashboard() {
       xhr.withCredentials = true;
       if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
       xhr.setRequestHeader("X-File-Name", encodeURIComponent(task.fileName));
-      xhr.setRequestHeader(
-        "X-Uploader-Name",
-        uploaderName.trim() || "anonymous",
-      );
+      xhr.setRequestHeader("X-Uploader-Name", uploaderName.trim() || "anonymous");
+      if (currentFolderId) xhr.setRequestHeader("X-Folder-Id", currentFolderId);
       xhr.setRequestHeader(
         "Content-Type",
         task.mimeType || "application/octet-stream",
@@ -496,6 +494,7 @@ export default function Dashboard() {
           mimeType: task.mimeType || "application/octet-stream",
           totalSize: task.fileSize,
           uploaderName: uploaderName.trim() || "anonymous",
+          folderId: currentFolderId || undefined,
         }),
       });
       if (!sessionRes.ok) throw new Error("Failed to create session");
