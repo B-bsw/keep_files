@@ -168,9 +168,9 @@ function FolderNode({
           <ChevronRight className="w-3 h-3 shrink-0 text-gray-400" />
         )}
         {isExpanded ? (
-          <FolderOpen className="w-4 h-4 shrink-0 text-yellow-500 dark:text-yellow-400" />
+          <FolderOpen className="w-4 h-4 shrink-0 text-blue-500 dark:text-blue-400" />
         ) : (
-          <Folder className="w-4 h-4 shrink-0 text-yellow-500 dark:text-yellow-400" />
+          <Folder className="w-4 h-4 shrink-0 text-blue-500 dark:text-blue-400" />
         )}
         <span className="flex-1 min-w-0 truncate text-[13px]">{folder.name}</span>
         <div className="opacity-0 group-hover:opacity-100 flex items-center gap-0.5 shrink-0" onClick={(e) => e.stopPropagation()}>
