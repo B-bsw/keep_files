@@ -1,19 +1,20 @@
 services:
 
-  # -- Frontend -- Uncomment for use
-  # frontend:
-  #   build:
-  #     context: ./frontend
-  #   restart: always
-  #   ports:
-  #     - "3000:3000"
-  #   environment:
-  #     - API_URL=http://api:3001
-  #     - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:3001}
-  #     - PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:3001}
-  #   depends_on:
-  #     - api
+  # -- Frontend --
+  frontend:
+    build:
+      context: ./frontend
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - API_URL=http://api:3001
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:3001}
+      - PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:3001}
+    depends_on:
+      - api
 
+  # -- MinIO for system file storage --
   minio:
     image: minio/minio:latest
     restart: always
@@ -27,6 +28,7 @@ services:
       - minio_data:/data
     command: server /data --console-address ":9001"
 
+  # -- Backend --
   api:
     build:
       context: ./backend
