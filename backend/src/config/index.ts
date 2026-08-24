@@ -4,6 +4,11 @@ export const config = {
   publicApiUrl: process.env.PUBLIC_API_URL || "http://localhost:3001",
   port: Number(process.env.PORT) || 3001,
   nodeEnv: process.env.NODE_ENV || "development",
+  // Comma-separated allowlist used in production. Dev reflects any origin.
+  corsOrigins: (process.env.CORS_ORIGIN || "http://localhost:3000,http://127.0.0.1:3000,http://[::1]:3000")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean),
   minio: {
     endPoint: process.env.MINIO_ENDPOINT || "localhost",
     port: Number(process.env.MINIO_PORT) || 9000,

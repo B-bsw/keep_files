@@ -24,6 +24,10 @@ const tokenService = new TokenService();
 const app = new Elysia({ serve: { maxRequestBodySize: 10 * 1024 * 1024 * 1024 } })
   .use(
     cors({
+      // Dev: reflect any origin so uploads work from localhost/127.0.0.1/LAN IPs.
+      // Production: locked down to the CORS_ORIGIN allowlist.
+      origin:
+        config.nodeEnv === "production" ? config.corsOrigins : true,
       credentials: true,
       allowedHeaders: ["Content-Type", "Authorization", "x-access-key", "x-file-name", "x-uploader-name", "x-folder-id", "Content-Range"],
     }),
@@ -36,6 +40,26 @@ const app = new Elysia({ serve: { maxRequestBodySize: 10 * 1024 * 1024 * 1024 } 
     }),
   )
   .ws("/ws", {
+    // Real-time topic requires the same auth as the REST API — otherwise
+    // anyone could subscribe and watch file events.
+    beforeHandle: async ({ request, cookie: { auth }, jwt }) => {
+      const url = new URL(request.url);
+      const token =
+        request.headers.get("x-access-key") ||
+        request.headers.get("authorization")?.replace("Bearer ", "") ||
+        url.searchParams.get("key") ||
+        undefined;
+
+      let authorized = false;
+      if (token === config.accessKey) {
+        authorized = true;
+      } else {
+        const jwtToken = auth?.value || token;
+        if (jwtToken && (await jwt.verify(jwtToken as string))) authorized = true;
+      }
+
+      if (!authorized) throw new Error("Unauthorized WebSocket");
+    },
     open(ws) {
       ws.subscribe("files");
     },
@@ -67,15 +91,26 @@ const app = new Elysia({ serve: { maxRequestBodySize: 10 * 1024 * 1024 * 1024 } 
 
     return { isAuthenticated };
   })
-  .onBeforeHandle(({ isAuthenticated, set, path }) => {
-    if (
-      path === "/" ||
-      path === "/health" ||
-      path.endsWith("/content") ||
-      path === "/auth/login" ||
-      path.startsWith("/share/")
-    )
-      return;
+  .onBeforeHandle(({ isAuthenticated, set, path, request }) => {
+    if (path === "/" || path === "/health" || path === "/auth/login") return;
+
+    // File content is guarded by short-lived access tokens instead of auth.
+    if (path.endsWith("/content")) return;
+
+    // Public share access is exactly:
+    //   GET  /share/:token           — link info
+    //   POST /share/:token/access    — download URL (DOWNLOAD links only)
+    //   GET  /share/:token/preview   — inline image preview
+    // Everything else under /share (create/list/delete links) requires auth —
+    // a plain startsWith("/share/") check used to leak those routes publicly.
+    const shareMatch = path.match(/^\/share\/([^/]+)(\/access|\/preview)?$/);
+    if (shareMatch) {
+      const method = request.method.toUpperCase();
+      const isInfoGet = method === "GET" && !shareMatch[2];
+      const isAccessPost = method === "POST" && shareMatch[2] === "/access";
+      const isPreviewGet = method === "GET" && shareMatch[2] === "/preview";
+      if (isInfoGet || isAccessPost || isPreviewGet) return;
+    }
 
     if (!isAuthenticated) {
       set.status = 401;
@@ -94,6 +129,12 @@ const app = new Elysia({ serve: { maxRequestBodySize: 10 * 1024 * 1024 * 1024 } 
     appendFile(path.join(process.cwd(), "error.log"), logMsg).catch((e) =>
       console.error("Failed to write to error.log", e),
     );
+
+    // Rejected WebSocket upgrade
+    if (err.message === "Unauthorized WebSocket") {
+      set.status = 401;
+      return { error: "Unauthorized" };
+    }
 
     if (
       err.message?.includes("Can't reach database") ||
@@ -116,10 +157,11 @@ const app = new Elysia({ serve: { maxRequestBodySize: 10 * 1024 * 1024 * 1024 } 
       };
     }
 
+    // Don't leak internal error details to clients — full detail goes to error.log.
     set.status = 500;
     return {
       error: "Internal Server Error",
-      message: err.message || "An unexpected error occurred",
+      message: "An unexpected error occurred",
     };
   });
 
@@ -134,6 +176,15 @@ app.use(folderController(folderService));
 app.use(shareController(shareService, fileService, tokenService));
 
 app.listen({ port: config.port, hostname: "0.0.0.0" });
+
+if (!process.env.JWT_SECRET) {
+  console.warn(
+    "⚠️  JWT_SECRET is not set — falling back to an insecure default. Set it before deploying!",
+  );
+}
+if (!process.env.ACCESS_KEY) {
+  console.warn("⚠️  ACCESS_KEY is not set — using the insecure default key.");
+}
 
 console.log(
   `🦊 Backend is running at ${app.server?.hostname}:${app.server?.port}`,

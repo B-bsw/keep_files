@@ -1,4 +1,5 @@
 import { Elysia, t } from "elysia";
+import { Readable } from "stream";
 import { FileService } from "../services/FileService";
 import { TokenService } from "../services/TokenService";
 import { config } from "../config";
@@ -7,6 +8,16 @@ const serializeFile = (f: { size: bigint | number; [key: string]: unknown }) => 
   ...f,
   size: Number(f.size),
 });
+
+// Header values are Latin-1 only; clients encodeURIComponent non-ASCII names.
+// Fall back to the raw value if it wasn't encoded (older clients).
+const safeDecodeHeader = (value: string) => {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+};
 
 export const fileController = (
   fileService: FileService,
@@ -65,9 +76,10 @@ export const fileController = (
       }
     )
     .post("/upload/stream", async ({ request, set }) => {
-      const fileName = decodeURIComponent(request.headers.get("x-file-name") || "upload");
+      const fileName = safeDecodeHeader(request.headers.get("x-file-name") || "upload");
       const mimeType = request.headers.get("content-type") || "application/octet-stream";
-      const uploaderName = request.headers.get("x-uploader-name") || undefined;
+      const uploaderNameRaw = request.headers.get("x-uploader-name") || "";
+      const uploaderName = safeDecodeHeader(uploaderNameRaw) || undefined;
       const folderId = request.headers.get("x-folder-id") || undefined;
 
       if (!request.body) {
@@ -75,6 +87,8 @@ export const fileController = (
         return { error: "No body" };
       }
 
+      // Fast-path rejection based on the declared size; the streamed byte
+      // count is enforced again in streamUpload for lying clients.
       const contentLength = Number(request.headers.get("content-length") || 0);
       if (contentLength > 5 * 1024 * 1024 * 1024) {
         set.status = 413;
@@ -84,26 +98,35 @@ export const fileController = (
       const ext = fileName.split(".").pop() || "";
       const objectKey = `${crypto.randomUUID()}-${Date.now()}.${ext}`;
 
-      const chunks: Buffer[] = [];
-      let size = 0;
-      for await (const chunk of request.body as unknown as AsyncIterable<Uint8Array>) {
-        chunks.push(Buffer.from(chunk));
-        size += chunk.byteLength;
+      let nodeStream: NodeJS.ReadableStream;
+      try {
+        nodeStream = Readable.fromWeb(request.body as Parameters<typeof Readable.fromWeb>[0]);
+      } catch {
+        set.status = 400;
+        return { error: "Invalid request body" };
       }
-      const buffer = Buffer.concat(chunks);
 
-      const newFile = serializeFile(await fileService.streamUpload({
-        objectKey,
-        buffer,
-        size,
-        originalName: fileName,
-        mimeType,
-        uploaderName,
-        folderId,
-      }));
-      publish("files", JSON.stringify({ type: "FILE_ADDED", data: newFile }));
+      try {
+        const newFile = serializeFile(
+          await fileService.streamUpload({
+            objectKey,
+            source: nodeStream,
+            originalName: fileName,
+            mimeType,
+            uploaderName,
+            folderId,
+          }),
+        );
+        publish("files", JSON.stringify({ type: "FILE_ADDED", data: newFile }));
 
-      return newFile;
+        return newFile;
+      } catch (error) {
+        if (error instanceof Error && error.message === "File exceeds 5 GB limit") {
+          set.status = 413;
+          return { error: error.message };
+        }
+        throw error;
+      }
     })
     // Resumable upload session routes
     .post(
@@ -181,42 +204,80 @@ export const fileController = (
       const downloadUrl = `${config.publicApiUrl}/files/${file.id}/content?token=${token}`;
       return { token, url: downloadUrl };
     })
-    .get("/:id/download", async ({ set }) => {
-      set.status = 403;
-      return { error: "Please request access with a password first" };
-    })
-    .get("/:id/content", async ({ params, query, set }) => {
+    // Streams file content with Range support (video seek, resumable downloads).
+    // Content-Disposition stays `attachment`: anchor-click downloads need it and
+    // embedded <img>/<video> ignore it.
+    .get("/:id/content", async ({ params, query, request, set }) => {
       const { token } = query;
       if (!tokenService.verifyToken(token as string, params.id)) {
         set.status = 401;
         return { error: "Invalid or expired token" };
       }
 
-      const file = await fileService.getFileById(params.id);
-      if (!file) {
+      const info = await fileService.getFileInfo(params.id);
+      if (!info) {
         set.status = 404;
-        return { error: "File not found" };
+        return { error: "File not found or content missing" };
       }
+      const { file, size: totalSize } = info;
 
-      const exists = await fileService.objectExists(file.objectKey);
-      if (!exists) {
-        set.status = 404;
-        return { error: "File content not found" };
+      // toWebStream with cancel → destroy so aborted requests stop the transfer.
+      const toWebStream = (nodeStream: NodeJS.ReadableStream) =>
+        new ReadableStream({
+          start(controller) {
+            nodeStream.on("data", (chunk: Buffer) => controller.enqueue(chunk));
+            nodeStream.on("end", () => controller.close());
+            nodeStream.on("error", (err) => controller.error(err));
+          },
+          cancel() {
+            (nodeStream as import("stream").Readable).destroy();
+          },
+        });
+
+      const baseHeaders: Record<string, string> = {
+        "Content-Type": file.mimeType,
+        "Accept-Ranges": "bytes",
+        "Cache-Control": "private, max-age=300",
+        "Content-Disposition": `attachment; filename="${encodeURIComponent(file.originalName)}"`,
+      };
+
+      const rangeHeader = request.headers.get("range");
+      const rangeMatch = rangeHeader?.match(/^bytes=(\d*)-(\d*)$/);
+      if (rangeMatch && (rangeMatch[1] !== "" || rangeMatch[2] !== "")) {
+        let start: number;
+        let end: number;
+
+        if (rangeMatch[1] === "") {
+          // Suffix form: bytes=-N → last N bytes
+          const suffix = parseInt(rangeMatch[2]!);
+          start = Math.max(0, totalSize - suffix);
+          end = totalSize - 1;
+        } else {
+          start = parseInt(rangeMatch[1]!);
+          end = rangeMatch[2] === "" ? totalSize - 1 : Math.min(parseInt(rangeMatch[2]!), totalSize - 1);
+        }
+
+        if (start >= totalSize || start > end) {
+          set.status = 416;
+          set.headers["Content-Range"] = `bytes */${totalSize}`;
+          return { error: "Requested range not satisfiable" };
+        }
+
+        const length = end - start + 1;
+        const nodeStream = await fileService.getObjectRange(file.objectKey, start, length);
+
+        return new Response(toWebStream(nodeStream), {
+          status: 206,
+          headers: {
+            ...baseHeaders,
+            "Content-Range": `bytes ${start}-${end}/${totalSize}`,
+            "Content-Length": String(length),
+          },
+        });
       }
 
       const nodeStream = await fileService.getObjectStream(file.objectKey);
-      const webStream = new ReadableStream({
-        start(controller) {
-          nodeStream.on("data", (chunk: Buffer) => controller.enqueue(chunk));
-          nodeStream.on("end", () => controller.close());
-          nodeStream.on("error", (err) => controller.error(err));
-        },
-      });
-
-      return new Response(webStream, {
-        headers: {
-          "Content-Disposition": `attachment; filename="${encodeURIComponent(file.originalName)}"`,
-          "Content-Type": file.mimeType,
-        },
+      return new Response(toWebStream(nodeStream), {
+        headers: { ...baseHeaders, "Content-Length": String(totalSize) },
       });
     });

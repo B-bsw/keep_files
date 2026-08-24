@@ -1,11 +1,13 @@
 import { prisma } from "../db";
 import { minioService } from "./MinioService";
 
+const MAX_FILE_SIZE = 5 * 1024 * 1024 * 1024; // 5 GB
+
 export class FileService {
   constructor() {
     minioService.ensureBucket().catch(console.error);
     this.cleanupExpiredSessions().catch(console.error);
-    setInterval(() => this.cleanupExpiredSessions().catch(console.error), 60 * 60 * 1000);
+    setInterval(() => this.cleanupExpiredSessions().catch(console.error), 60 * 60 * 1000).unref();
   }
 
   private async cleanupExpiredSessions() {
@@ -13,7 +15,7 @@ export class FileService {
       where: { expiresAt: { lt: new Date() } },
     });
     for (const session of expired) {
-      await minioService.removeTempObject(session.objectKey);
+      await minioService.removeParts(session.objectKey);
       await prisma.uploadSession.delete({ where: { id: session.id } });
     }
     if (expired.length > 0) {
@@ -35,19 +37,23 @@ export class FileService {
   public async saveFile(file: globalThis.File, uploaderName?: string) {
     const originalName = file.name;
     const mimeType = file.type;
-    const size = file.size;
 
     const ext = originalName.split(".").pop() || "";
     const objectKey = `${crypto.randomUUID()}-${Date.now()}.${ext}`;
 
-    const buffer = Buffer.from(await file.arrayBuffer());
-    await minioService.putObject(objectKey, buffer, size, mimeType);
+    // Stream the file through to MinIO instead of buffering it in RAM.
+    const { Readable } = await import("stream");
+    const size = await minioService.putObjectStream(
+      objectKey,
+      Readable.fromWeb(file.stream() as Parameters<typeof Readable.fromWeb>[0]),
+      mimeType,
+    );
 
     return prisma.file.create({
       data: {
         originalName,
         objectKey,
-        size,
+        size: BigInt(size),
         mimeType,
         uploaderName: uploaderName || null,
       },
@@ -58,33 +64,41 @@ export class FileService {
     const file = await this.getFileById(id);
     if (!file) throw new Error("File not found");
 
+    // Delete the DB row first so the UI never references an object we
+    // failed to remove; a leftover MinIO object is preferable to a broken record.
+    await prisma.file.delete({ where: { id } });
+
     try {
       await minioService.removeObject(file.objectKey);
     } catch (error) {
       console.error("Error deleting object from MinIO:", error);
     }
-
-    await prisma.file.delete({ where: { id } });
     return true;
   }
 
   public async cancelUploadSession(sessionId: string) {
     const session = await this.getUploadSession(sessionId);
     if (!session) return;
-    await minioService.removeTempObject(session.objectKey);
+    await minioService.removeParts(session.objectKey);
     await prisma.uploadSession.delete({ where: { id: sessionId } });
   }
 
-  public async streamUpload({ objectKey, buffer, size, originalName, mimeType, uploaderName, folderId }: {
+  public async streamUpload({ objectKey, source, originalName, mimeType, uploaderName, folderId }: {
     objectKey: string;
-    buffer: Buffer;
-    size: number;
+    source: NodeJS.ReadableStream;
     originalName: string;
     mimeType: string;
     uploaderName?: string;
     folderId?: string;
   }) {
-    await minioService.putObject(objectKey, buffer, size, mimeType);
+    // Stream straight to MinIO — memory stays flat regardless of file size.
+    const size = await minioService.putObjectStream(objectKey, source, mimeType);
+
+    if (size > MAX_FILE_SIZE) {
+      await minioService.removeObject(objectKey);
+      throw new Error("File exceeds 5 GB limit");
+    }
+
     return this.saveFileRecord({ originalName, objectKey, size, mimeType, uploaderName, folderId });
   }
 
@@ -133,9 +147,10 @@ export class FileService {
     const session = await this.getUploadSession(sessionId);
     if (!session) throw new Error("Upload session not found");
 
-    await minioService.appendChunkToTemp(session.objectKey, chunk, rangeStart, Number(session.totalSize));
+    await minioService.putChunkPart(session.objectKey, chunk, rangeStart);
 
-    const newUploaded = rangeStart + chunk.length;
+    // max() keeps progress monotonic if chunks race or retry.
+    const newUploaded = Math.max(Number(session.uploadedSize), rangeStart + chunk.byteLength);
     await prisma.uploadSession.update({
       where: { id: sessionId },
       data: { uploadedSize: BigInt(newUploaded) },
@@ -149,20 +164,27 @@ export class FileService {
   }
 
   private async finalizeSession(session: { id: string; objectKey: string; fileName: string; mimeType: string; totalSize: bigint; uploaderName: string | null; folderId?: string | null }) {
-    await minioService.finalizeTempObject(session.objectKey, session.mimeType, Number(session.totalSize));
+    // Server-side compose — no bytes flow through the backend.
+    await minioService.composeParts(session.objectKey);
 
-    const newFile = await prisma.file.create({
-      data: {
+    let newFile: Awaited<ReturnType<FileService["saveFileRecord"]>>;
+    try {
+      newFile = await this.saveFileRecord({
         originalName: session.fileName,
         objectKey: session.objectKey,
-        size: session.totalSize,
+        size: Number(session.totalSize),
         mimeType: session.mimeType,
-        uploaderName: session.uploaderName,
-        folderId: session.folderId || null,
-      },
-    });
+        uploaderName: session.uploaderName || undefined,
+        folderId: session.folderId || undefined,
+      });
+    } catch (error) {
+      // Concurrent finalize for the same objectKey — treat as done.
+      const existing = await prisma.file.findUnique({ where: { objectKey: session.objectKey } });
+      if (!existing) throw error;
+      newFile = existing;
+    }
 
-    await prisma.uploadSession.delete({ where: { id: session.id } });
+    await prisma.uploadSession.delete({ where: { id: session.id } }).catch(() => {});
 
     return { done: true, file: newFile };
   }
@@ -188,13 +210,24 @@ export class FileService {
         ...(originalName && { originalName: finalOriginalName }),
         ...(uploaderName !== undefined && { uploaderName }),
         ...(folderId !== undefined && { folderId }),
-        uploadDate: new Date(),
       },
     });
   }
 
+  public async getFileInfo(id: string) {
+    const file = await this.getFileById(id);
+    if (!file) return null;
+    const stat = await minioService.statObject(file.objectKey);
+    if (!stat) return null;
+    return { file, size: stat.size };
+  }
+
   public async getObjectStream(objectKey: string) {
     return minioService.getObjectStream(objectKey);
+  }
+
+  public async getObjectRange(objectKey: string, offset: number, length: number) {
+    return minioService.getObjectRange(objectKey, offset, length);
   }
 
   public async objectExists(objectKey: string) {
