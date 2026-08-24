@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { Download, File as FileIcon, Loader2, AlertCircle } from "lucide-react";
-import { formatBytes } from "../../../utils";
+import { formatBytes, triggerDownload } from "../../../utils";
 
 type ShareInfo = {
   type: "file";
@@ -42,7 +42,7 @@ export default function SharePage() {
       const res = await fetch(`/api/share/${token}`, { method: "POST" });
       if (!res.ok) throw new Error();
       const { url } = await res.json();
-      window.open(url, "_blank");
+      triggerDownload(url, info?.file.originalName);
     } catch {
       setError("Failed to get download link");
     } finally {

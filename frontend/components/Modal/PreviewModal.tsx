@@ -392,8 +392,6 @@ export function PreviewModal({ isOpen, previewUrl, file, onClose }: PreviewModal
                   <a
                     href={previewUrl}
                     download={file.originalName}
-                    target="_blank"
-                    rel="noopener noreferrer"
                     className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/8 transition-colors"
                     aria-label="Download"
                   >

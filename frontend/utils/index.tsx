@@ -16,6 +16,17 @@ export const formatBytes = (bytes: number, decimals = 2) => {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + " " + sizes[i];
 };
 
+// Trigger download in-place — no new tab. The backend responds with
+// Content-Disposition: attachment, so the browser streams the file directly.
+export const triggerDownload = (url: string, filename?: string) => {
+  const a = document.createElement("a");
+  a.href = url;
+  if (filename) a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+};
+
 export const getFileIcon = (mimeType: string) => {
   if (mimeType.startsWith("image/"))
     return <ImageIcon className="w-8 h-8 text-blue-400" />;

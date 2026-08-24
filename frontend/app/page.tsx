@@ -17,6 +17,7 @@ import {
   DeleteTask,
   SortOption,
 } from "../types";
+import { triggerDownload } from "../utils";
 import { Header } from "../components/Header/Header";
 import { UploadArea } from "../components/UploadArea";
 import { UploadProgressList } from "../components/Progress/UploadProgressList";
@@ -849,7 +850,7 @@ export default function Dashboard() {
         const data = await res.json();
 
         if (type === "download") {
-          window.open(data.url, "_blank");
+          triggerDownload(data.url, file.originalName);
         } else if (type === "preview") {
           setPreviewUrl(data.url);
           setPreviewFile(file);
